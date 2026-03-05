@@ -4,6 +4,8 @@ import { useRef, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { MeasurementData, COORDINATES, getCoordinates } from "@/lib/api";
 
+import * as THREE from 'three';
+
 const Globe = dynamic(() => import("react-globe.gl"), { ssr: false });
 
 interface GlobeMapProps {
@@ -189,10 +191,10 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
             const CLOUDS_ALT = 0.004;
             const CLOUDS_ROTATION_SPEED = -0.006; // deg/frame
 
-            new (window as any).THREE.TextureLoader().load(CLOUDS_IMG_URL, (cloudsTexture: any) => {
-              const clouds = new (window as any).THREE.Mesh(
-                new (window as any).THREE.SphereGeometry(globe.getGlobeRadius() * (1 + CLOUDS_ALT), 75, 75),
-                new (window as any).THREE.MeshPhongMaterial({ map: cloudsTexture, transparent: true, opacity: 0.8 })
+            new THREE.TextureLoader().load(CLOUDS_IMG_URL, (cloudsTexture: any) => {
+              const clouds = new THREE.Mesh(
+                new THREE.SphereGeometry(globe.getGlobeRadius() * (1 + CLOUDS_ALT), 75, 75),
+                new THREE.MeshPhongMaterial({ map: cloudsTexture, transparent: true, opacity: 0.8 })
               );
               globe.scene().add(clouds);
 
