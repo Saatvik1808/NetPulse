@@ -39,7 +39,10 @@ function timeAgo(iso: string): string {
 
 export default function Home() {
   const { measurements, setMeasurements, loading, error } = useMeasurements(0);
-  const browserAgent = useBrowserAgent();
+  
+  const [browserAgentEnabled, setBrowserAgentEnabled] = useState(true);
+  const [browserAgentInterval, setBrowserAgentInterval] = useState(5000);
+  const browserAgent = useBrowserAgent(browserAgentEnabled, browserAgentInterval);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -181,8 +184,30 @@ export default function Home() {
             <span className="tech-metric-val" style={{ color: "var(--accent-green)" }}>{Array.from(new Set(measurements.map(m => m.sourceRegion))).length}</span>
           </div>
           <div className="tech-metric-row">
-            <span className="tech-metric-key">POLL_FREQ:</span>
-            <span className="tech-metric-val">5000ms</span>
+            <span className="tech-metric-key" style={{ lineHeight: "18px" }}>AGENT_POWER:</span>
+            <span className="tech-metric-val">
+               <button 
+                 onClick={() => setBrowserAgentEnabled(!browserAgentEnabled)}
+                 style={{ background: browserAgentEnabled ? 'var(--accent-green)' : 'var(--text-muted)', color: '#000', border: 'none', borderRadius: '4px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
+                 {browserAgentEnabled ? 'ON' : 'OFF'}
+               </button>
+            </span>
+          </div>
+          <div className="tech-metric-row">
+            <span className="tech-metric-key" style={{ lineHeight: "22px" }}>POLL_FREQ:</span>
+            <span className="tech-metric-val">
+              <select 
+                value={browserAgentInterval} 
+                onChange={(e) => setBrowserAgentInterval(Number(e.target.value))}
+                style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', cursor: 'pointer' }}
+              >
+                <option value={2000}>2000ms</option>
+                <option value={5000}>5000ms</option>
+                <option value={10000}>10000ms</option>
+                <option value={30000}>30000ms</option>
+                <option value={60000}>60000ms</option>
+              </select>
+            </span>
           </div>
         </div>
 

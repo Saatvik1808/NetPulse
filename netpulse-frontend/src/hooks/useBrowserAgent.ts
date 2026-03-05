@@ -13,43 +13,54 @@ const FALLBACK_TARGETS: TargetInfo[] = [
     { host: "cloudflare", url: "https://1.1.1.1", region: "global" },
 ];
 
-export function useBrowserAgent() {
+export function useBrowserAgent(enabled: boolean = true, intervalMs: number = 5000) {
     const [browserAgentState, setBrowserAgentState] = useState<{
         city: string | null;
         pinging: boolean;
+        sourceRegion?: string;
     }>({ city: null, pinging: false });
 
     const isRunningRef = useRef(false);
+    const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-        if (isRunningRef.current) return;
-        isRunningRef.current = true;
-
         const startAgent = async () => {
-            const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-
-            // 1. Get user location
-            let city = "Unknown";
-            let country = "Unknown";
-            try {
-                const res = await fetch("https://ipapi.co/json/");
-                const data = await res.json();
-                if (data.city) city = data.city;
-                if (data.country_name) country = data.country_name;
-            } catch (err) {
-                console.error("Failed to get location from ipapi.co", err);
+            if (!enabled) {
+                if (intervalRef.current) {
+                    clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                }
+                setBrowserAgentState(prev => ({ ...prev, pinging: false }));
+                return;
             }
 
-            setBrowserAgentState({ city, pinging: true });
+            const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
-            const agentId = `browser-${city.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Math.floor(Math.random() * 1000)}`;
-            const sourceRegion = `${city}, ${country}`;
+            // 1. Get user location (only once)
+            let city = browserAgentState.city;
+            let sourceRegionLocal = "Unknown Region";
+            if (!city) {
+                try {
+                    const res = await fetch("https://ipapi.co/json/");
+                    const data = await res.json();
+                    if (data.city) city = data.city;
+                    const country = data.country_name || "Unknown";
+                    sourceRegionLocal = `${city}, ${country}`;
+                } catch (err) {
+                    console.error("Failed to get location from ipapi.co", err);
+                    city = "Unknown";
+                }
+            } else {
+                sourceRegionLocal = browserAgentState.sourceRegion || "Unknown";
+            }
 
-            console.log(`🚀 Browser Agent [${agentId}] started from ${sourceRegion}`);
+            setBrowserAgentState({ city, pinging: true, sourceRegion: sourceRegionLocal });
 
-            // 2. Poll targets and probe periodically
+            const agentId = `browser-${city?.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Math.floor(Math.random() * 1000)}`;
+
+            console.log(`🚀 Browser Agent [${agentId}] running from ${sourceRegionLocal} (Interval: ${intervalMs}ms)`);
+
             const pollAndProbe = async () => {
-                // First, fetch the latest targets from the server
                 let currentTargets = FALLBACK_TARGETS;
                 try {
                     const tResp = await fetch(`${backendUrl}/api/v1/targets`);
@@ -70,12 +81,10 @@ export function useBrowserAgent() {
                     let latencyMs = 0;
 
                     try {
-                        // Using no-cors to bypass CORS blocks on external domains
                         await fetch(target.url, { mode: "no-cors", cache: "no-store", keepalive: false });
                         latencyMs = performance.now() - start;
                         status = "SUCCESS";
                     } catch (err) {
-                        console.warn(`Browser ping to ${target.host} failed`, err);
                         status = "ERROR";
                     }
 
@@ -89,33 +98,38 @@ export function useBrowserAgent() {
                     });
                 }
 
-                // 3. POST measurements to backend
                 try {
                     await fetch(`${backendUrl}/api/v1/measurements`, {
                         method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
+                        headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             agentId: agentId,
-                            sourceRegion: sourceRegion,
+                            sourceRegion: sourceRegionLocal,
                             measurements: measurements,
                         }),
                     });
                 } catch (err) {
-                    console.error("Failed to post browser measurements to backend", err);
+                    console.error("Failed to post browser measurements", err);
                 }
             };
 
-            // Poll every 5 seconds
-            pollAndProbe();
-            const interval = setInterval(pollAndProbe, 5000);
+            // Clear old interval if exists
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
 
-            return () => clearInterval(interval);
+            pollAndProbe();
+            intervalRef.current = setInterval(pollAndProbe, intervalMs);
         };
 
         startAgent();
-    }, []);
+
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, [enabled, intervalMs, browserAgentState.city]);
 
     return browserAgentState;
 }

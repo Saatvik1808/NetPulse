@@ -182,7 +182,7 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
         ref={globeRef}
         onGlobeReady={() => {
           setGlobeReady(true);
-          // Add clouds layer
+          // Add clouds layer directly to THIS globe's scene
           const globe = globeRef.current;
           if (globe) {
             const CLOUDS_IMG_URL = '//unpkg.com/three-globe/example/img/earth-clouds.png';
@@ -192,7 +192,7 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
             new (window as any).THREE.TextureLoader().load(CLOUDS_IMG_URL, (cloudsTexture: any) => {
               const clouds = new (window as any).THREE.Mesh(
                 new (window as any).THREE.SphereGeometry(globe.getGlobeRadius() * (1 + CLOUDS_ALT), 75, 75),
-                new (window as any).THREE.MeshPhongMaterial({ map: cloudsTexture, transparent: true })
+                new (window as any).THREE.MeshPhongMaterial({ map: cloudsTexture, transparent: true, opacity: 0.8 })
               );
               globe.scene().add(clouds);
 
@@ -213,23 +213,23 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
 
         // ── Neon Arcs ──
         arcsData={arcsData}
-        arcColor={(d: any) => [(d as any).startColor, (d as any).endColor]} // eslint-disable-line @typescript-eslint/no-explicit-any
+        arcColor={(d: any) => [(d as any).startColor, (d as any).endColor]} 
         arcDashLength={0.6}
         arcDashGap={0.15}
         arcDashAnimateTime={() => 800 + Math.random() * 700}
-        arcStroke={(d: any) => (d as any).strokeWidth} // eslint-disable-line @typescript-eslint/no-explicit-any
+        arcStroke={(d: any) => (d as any).strokeWidth} 
         arcLabel="label"
-        arcAltitudeAutoScale={0.5}
+        arcAltitudeAutoScale={0.6} // Increased to ensure it pops above clouds
 
         // ── Glowing Points ──
         pointsData={pointsData}
-        pointColor={(d: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-          const p = d as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+        pointColor={(d: any) => { 
+          const p = d as any; 
           if (!p.isPointSelected) return "#ffffff10";
           return p.isSource ? "#00b0ff" : "#f43f5e";
         }}
-        pointAltitude={0.015}
-        pointRadius={(d: any) => (d as any).isPointSelected ? 0.6 : 0.3} // eslint-disable-line @typescript-eslint/no-explicit-any
+        pointAltitude={0.015} // Above clouds
+        pointRadius={(d: any) => (d as any).isPointSelected ? 0.6 : 0.3} 
         pointLabel="label"
         pointsMerge={false}
 
@@ -242,12 +242,12 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
 
         // ── HTML Labels for key points ──
         htmlElementsData={pointsData}
-        htmlLat={(d: any) => (d as any).lat} // eslint-disable-line @typescript-eslint/no-explicit-any
-        htmlLng={(d: any) => (d as any).lng} // eslint-disable-line @typescript-eslint/no-explicit-any
+        htmlLat={(d: any) => (d as any).lat} 
+        htmlLng={(d: any) => (d as any).lng} 
         htmlAltitude={0.04}
-        htmlElement={(d: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        htmlElement={(d: any) => { 
           const el = document.createElement("div");
-          const data = d as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+          const data = d as any; 
           const isSource = data.isSource;
           const color = isSource ? "#00b0ff" : "#f43f5e";
           el.innerHTML = `<div style="
@@ -261,6 +261,7 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
           return el;
         }}
       />
+
       <style jsx global>{`
         @keyframes neonPulse {
           from { opacity: 0.5; transform: scale(1); }
