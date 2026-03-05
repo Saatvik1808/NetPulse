@@ -11,9 +11,11 @@ export function useWebSocket(onMeasurement: (m: MeasurementData) => void) {
 
     const connect = useCallback(() => {
         const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+        // Convert http:// or https:// to ws:// or wss://
+        const wsUrl = baseUrl.replace(/^http/, "ws") + "/ws";
 
         const client = new Client({
-            webSocketFactory: () => new SockJS(`${baseUrl}/ws`),
+            brokerURL: wsUrl,
             reconnectDelay: 5000,
 
             onConnect: () => {
