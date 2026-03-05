@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useMeasurements } from "@/hooks/useMeasurements";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useBrowserAgent } from "@/hooks/useBrowserAgent";
 import { MeasurementData } from "@/lib/api";
 import "./globals.css";
 
@@ -38,6 +39,8 @@ function timeAgo(iso: string): string {
 
 export default function Home() {
   const { measurements, setMeasurements, loading, error } = useMeasurements(0);
+  const browserAgent = useBrowserAgent();
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [newHost, setNewHost] = useState("");
@@ -150,6 +153,12 @@ export default function Home() {
           <div className="tech-metric-row">
             <span className="tech-metric-key">PROTOCOL:</span>
             <span className="tech-metric-val">TCP/HTTP</span>
+          </div>
+          <div className="tech-metric-row">
+            <span className="tech-metric-key">BROWSER_AGENT:</span>
+            <span className="tech-metric-val" style={{ color: browserAgent.city ? "var(--accent-green)" : "var(--text-muted)" }}>
+              {browserAgent.city ? `ACTIVE (${browserAgent.city})` : "INITIATING..."}
+            </span>
           </div>
           <div className="tech-metric-row">
             <span className="tech-metric-key">PACKETS_RX:</span>
