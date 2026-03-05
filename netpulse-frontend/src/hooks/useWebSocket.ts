@@ -11,8 +11,8 @@ export function useWebSocket(onMeasurement: (m: MeasurementData) => void) {
 
     const connect = useCallback(() => {
         const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-        // Convert http:// or https:// to ws:// or wss://
-        const wsUrl = baseUrl.replace(/^http/, "ws") + "/ws";
+        // Convert http:// or https:// to ws:// or wss://, and append /ws/websocket to bypass SockJS
+        const wsUrl = baseUrl.replace(/^http/, "ws") + "/ws/websocket";
 
         const client = new Client({
             brokerURL: wsUrl,

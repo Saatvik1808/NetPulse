@@ -137,7 +137,7 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
             font-size: 11px;
             color: #60a5fa;
             box-shadow: 0 0 12px #3b82f630;
-          ">📡 ${m.sourceRegion}</div>`,
+          ">${m.sourceRegion}</div>`,
           isSource: true,
           latencyMs: 0,
         });
@@ -160,7 +160,7 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
             font-size: 11px;
             color: ${color};
             box-shadow: 0 0 12px ${color}30;
-          ">🎯 ${tgtKey}</div>`,
+          ">${tgtKey}</div>`,
           isSource: false,
           latencyMs: m.latencyMs,
         });

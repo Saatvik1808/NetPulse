@@ -75,14 +75,14 @@ export default function Home() {
   return (
     <div className="app">
       {/* 3D Globe — fills viewport */}
-      <div className="globe-container">
+      <div className="globe-container" onContextMenuCapture={(e) => e.stopPropagation()}>
         <GlobeMap measurements={measurements} selectedTarget={selectedTarget} />
       </div>
 
       {/* Floating Header */}
       <header className="header">
         <div className="header__brand">
-          <span className="header__logo">⚡ NetPulse</span>
+          <span className="header__logo">NetPulse</span>
           <span className="header__subtitle">Global Latency Monitor</span>
         </div>
         <div className="header__actions">
@@ -108,20 +108,20 @@ export default function Home() {
       {/* Floating Stats Pills (bottom left) */}
       <div className="float-stats">
         <div className="float-pill">
-          🎯 Targets: <span className="float-pill__value" style={{ color: "var(--accent-purple)" }}>{uniqueTargets}</span>
+          Targets: <span className="float-pill__value" style={{ color: "var(--accent-purple)" }}>{uniqueTargets}</span>
         </div>
         <div className="float-pill">
-          📡 Probes: <span className="float-pill__value" style={{ color: "var(--accent-blue)" }}>{measurements.length}</span>
+          Probes: <span className="float-pill__value" style={{ color: "var(--accent-blue)" }}>{measurements.length}</span>
         </div>
         <div className="float-pill">
-          ⚡ Avg: <span className="float-pill__value" style={{ color: "var(--accent-green)" }}>{avg.toFixed(1)} ms</span>
+          Avg: <span className="float-pill__value" style={{ color: "var(--accent-green)" }}>{avg.toFixed(1)} ms</span>
         </div>
       </div>
 
       {/* Collapsible Sidebar */}
       <aside className={`sidebar ${!sidebarOpen ? "sidebar--hidden" : ""}`}>
         <div className="sidebar__header">
-          <span className="sidebar__title">📊 Dashboard</span>
+          <span className="sidebar__title">Dashboard</span>
           <button className="sidebar__close" onClick={() => setSidebarOpen(false)}>✕</button>
         </div>
 
