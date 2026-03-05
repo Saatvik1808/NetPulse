@@ -64,13 +64,15 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
     return Array.from(latestByPair.values())
       .filter((m) => {
         const src = COORDINATES[m.sourceRegion];
-        const tgt = COORDINATES[m.targetRegion] || COORDINATES[m.targetHost];
+        const tgtKey = m.targetRegion || m.targetHost;
+        const tgt = COORDINATES[tgtKey];
         return src && tgt;
       })
       .map((m) => {
         const isPointSelected = !selectedTarget || m.targetHost === selectedTarget || m.sourceRegion === selectedTarget;
         const src = COORDINATES[m.sourceRegion];
-        const tgt = (COORDINATES[m.targetRegion] || COORDINATES[m.targetHost])!;
+        const tgtKey = m.targetRegion || m.targetHost;
+        const tgt = COORDINATES[tgtKey]!;
         const [startColor, endColor] = latencyColor(m.latencyMs);
         const targetKey = m.targetRegion || m.targetHost;
         const isSelected = !selectedTarget || m.targetHost === selectedTarget;
@@ -141,7 +143,7 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
         });
       }
       const tgtKey = m.targetRegion || m.targetHost;
-      const tgt = COORDINATES[m.targetRegion] || COORDINATES[m.targetHost];
+      const tgt = COORDINATES[tgtKey];
       if (tgt && !points.has(tgtKey)) {
         const color = latencySingleColor(m.latencyMs);
         const tgtSelected = !selectedTarget || m.targetHost === selectedTarget;

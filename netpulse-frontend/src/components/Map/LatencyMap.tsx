@@ -107,8 +107,8 @@ export default function LatencyMap({ measurements }: LatencyMapProps) {
 
         uniqueMeasurements.forEach((m) => {
           const sourceCoord = COORDINATES[m.sourceRegion];
-          const targetCoord =
-            COORDINATES[m.targetRegion] || COORDINATES[m.targetHost];
+          const targetKey = m.targetRegion || m.targetHost;
+          const targetCoord = COORDINATES[targetKey];
 
           if (!sourceCoord || !targetCoord) return;
 
