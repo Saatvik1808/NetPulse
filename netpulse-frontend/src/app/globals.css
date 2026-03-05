@@ -167,6 +167,18 @@ body {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(139, 92, 246, 0.5));
 }
 
+.btn--danger {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(244, 63, 94, 0.4);
+  color: var(--accent-red);
+}
+
+.btn--danger:hover {
+  background: rgba(244, 63, 94, 0.25);
+  border-color: rgba(244, 63, 94, 0.6);
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.4);
+}
+
 /* ── Floating Sidebar ── */
 .sidebar {
   position: absolute;

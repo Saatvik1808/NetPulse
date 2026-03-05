@@ -44,6 +44,42 @@ export default function Home() {
   const [browserAgentInterval, setBrowserAgentInterval] = useState(5000);
   const browserAgent = useBrowserAgent(browserAgentEnabled, browserAgentInterval);
 
+  // Global Config Sync
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+        const res = await fetch(`${backendUrl}/api/v1/config`);
+        if (res.ok) {
+          const config = await res.json();
+          setBrowserAgentEnabled(config.browserPinging);
+          setBrowserAgentInterval(config.browserIntervalMs);
+        }
+      } catch (err) {
+        console.warn("Failed to sync global config", err);
+      }
+    };
+    fetchConfig();
+    const syncInterval = setInterval(fetchConfig, 10000); // Sync every 10s
+    return () => clearInterval(syncInterval);
+  }, []);
+
+  const updateGlobalConfig = async (pinging: boolean, intervalMs: number) => {
+    // Optimistic UI update
+    setBrowserAgentEnabled(pinging);
+    setBrowserAgentInterval(intervalMs);
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      await fetch(`${backendUrl}/api/v1/config`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ browserPinging: pinging, browserIntervalMs: intervalMs }),
+      });
+    } catch (err) {
+      console.error("Failed to update global config", err);
+    }
+  };
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [newHost, setNewHost] = useState("");
@@ -187,7 +223,7 @@ export default function Home() {
             <span className="tech-metric-key" style={{ lineHeight: "18px" }}>AGENT_POWER:</span>
             <span className="tech-metric-val">
                <button 
-                 onClick={() => setBrowserAgentEnabled(!browserAgentEnabled)}
+                 onClick={() => updateGlobalConfig(!browserAgentEnabled, browserAgentInterval)}
                  style={{ background: browserAgentEnabled ? 'var(--accent-green)' : 'var(--text-muted)', color: '#000', border: 'none', borderRadius: '4px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
                  {browserAgentEnabled ? 'ON' : 'OFF'}
                </button>
@@ -198,7 +234,7 @@ export default function Home() {
             <span className="tech-metric-val">
               <select 
                 value={browserAgentInterval} 
-                onChange={(e) => setBrowserAgentInterval(Number(e.target.value))}
+                onChange={(e) => updateGlobalConfig(browserAgentEnabled, Number(e.target.value))}
                 style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', cursor: 'pointer' }}
               >
                 <option value={2000}>2000ms</option>
@@ -251,30 +287,32 @@ export default function Home() {
             </div>
             <div className="modal__body">
               {/* Add New Target Section */}
-              <div style={{ marginBottom: "2rem", padding: "1.5rem", background: "rgba(255,255,255,0.03)", borderRadius: "12px", border: "1px solid var(--border)" }}>
-                <h4 style={{ margin: "0 0 1rem 0", color: "var(--accent-blue)", fontSize: "0.9rem", letterSpacing: "0.05em" }}>ADD NEW ENDPOINT</h4>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px", gap: "1rem", alignItems: "end" }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
+              <div style={{ marginBottom: "2rem", padding: "1.5rem", background: "rgba(255,255,255,0.03)", borderRadius: "12px", border: "1px solid var(--border)", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
+                <h4 style={{ margin: "0 0 1.25rem 0", color: "var(--accent-blue)", fontSize: "0.9rem", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "1.1rem" }}>⚡</span> ADD NEW ENDPOINT
+                </h4>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "end" }}>
+                  <div className="form-group" style={{ marginBottom: 0, flex: "2 1 200px" }}>
                     <label className="form-group__label">Host / IP</label>
                     <input
                       className="form-group__input"
-                      placeholder="cloudflare.com"
+                      placeholder="e.g. cloudflare.com"
                       value={newHost}
                       onChange={(e) => setNewHost(e.target.value)}
                     />
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div className="form-group" style={{ marginBottom: 0, flex: "1 1 120px" }}>
                     <label className="form-group__label">Region</label>
                     <input
                       className="form-group__input"
-                      placeholder="global"
+                      placeholder="e.g. global"
                       value={newRegion}
                       onChange={(e) => setNewRegion(e.target.value)}
                     />
                   </div>
                   <button
                     className="btn btn--primary"
-                    style={{ height: "42px" }}
+                    style={{ height: "42px", flex: "0 0 120px", justifyContent: "center", fontWeight: "600", letterSpacing: "0.5px" }}
                     onClick={async () => {
                       if (!newHost.trim()) return;
                       const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -319,7 +357,7 @@ export default function Home() {
                       </div>
                       <button
                         className="btn btn--danger"
-                        style={{ padding: "4px 12px", fontSize: "11px", background: "rgba(244, 63, 94, 0.1)", color: "#f43f5e", border: "1px solid rgba(244, 63, 94, 0.2)" }}
+                        style={{ padding: "6px 14px", fontSize: "11px", borderRadius: "6px" }}
                         onClick={async () => {
                           if (!confirm(`Stop monitoring ${t.host}?`)) return;
                           const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
