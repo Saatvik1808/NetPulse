@@ -89,10 +89,10 @@ export default function Home() {
           <div className="header__status">
             <span className={`header__dot ${!connected ? "header__dot--connecting" : ""}`} />
             <span>
-              {error
-                ? "Disconnected"
-                : connected
+              {connected
                 ? "Live"
+                : error
+                ? "Disconnected"
                 : "Connecting..."}
             </span>
           </div>
