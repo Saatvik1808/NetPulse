@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/netpulse/netpulse-agent/internal/config"
 	"github.com/netpulse/netpulse-agent/internal/prober"
 )
 
@@ -43,6 +44,37 @@ type measurement struct {
 	PacketLoss   float64 `json:"packetLoss"`
 	Status       string  `json:"status"`
 	MeasuredAt   string  `json:"measuredAt"`
+}
+
+func (s *Sender) FetchTargets() ([]config.Target, error) {
+	url := s.serverURL + "/api/v1/targets"
+	resp, err := s.client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("fetch targets error: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status fetching targets: %d", resp.StatusCode)
+	}
+
+	var targets []struct {
+		Host   string `json:"host"`
+		Region string `json:"region"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&targets); err != nil {
+		return nil, fmt.Errorf("decode targets error: %w", err)
+	}
+
+	var result []config.Target
+	for _, t := range targets {
+		result = append(result, config.Target{
+			Host:   t.Host,
+			Region: t.Region,
+		})
+	}
+
+	return result, nil
 }
 
 func (s *Sender) Send(results []prober.Result) error {

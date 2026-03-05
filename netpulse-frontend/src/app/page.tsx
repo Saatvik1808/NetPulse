@@ -240,20 +240,32 @@ export default function Home() {
               <button className="btn" onClick={() => setModalOpen(false)}>Cancel</button>
               <button
                 className="btn btn--primary"
-                onClick={() => {
-                  if (newHost.trim()) {
-                    alert(
-                      `To add "${newHost}" as a target:\n\n` +
-                      `1. Open netpulse-agent/config.yaml\n` +
-                      `2. Add under targets:\n` +
-                      `   - host: "${newHost}"\n` +
-                      `     region: "${newRegion || "unknown"}"\n` +
-                      `3. Restart the agent\n\n` +
-                      `In Phase 3, this will be automated via the API.`
-                    );
-                    setNewHost("");
-                    setNewRegion("");
-                    setModalOpen(false);
+                onClick={async () => {
+                  if (!newHost.trim()) return;
+                  
+                  try {
+                    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+                    const response = await fetch(`${backendUrl}/api/v1/targets`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        host: newHost.trim(),
+                        url: newHost.startsWith("http") ? newHost.trim() : `https://${newHost.trim()}`,
+                        region: newRegion.trim() || "unknown"
+                      })
+                    });
+
+                    if (response.ok) {
+                      setNewHost("");
+                      setNewRegion("");
+                      setModalOpen(false);
+                      // In a real app we might toast here
+                    } else {
+                      alert("Failed to add target. Check backend logs.");
+                    }
+                  } catch (err) {
+                    console.error("Add target error", err);
+                    alert("Network error while adding target.");
                   }
                 }}
               >

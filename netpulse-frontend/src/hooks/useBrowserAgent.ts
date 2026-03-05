@@ -8,11 +8,9 @@ interface TargetInfo {
     region: string;
 }
 
-const TARGETS: TargetInfo[] = [
+const FALLBACK_TARGETS: TargetInfo[] = [
     { host: "dns.google", url: "https://dns.google", region: "global" },
     { host: "cloudflare", url: "https://1.1.1.1", region: "global" },
-    { host: "aws.amazon", url: "https://aws.amazon.com", region: "us-east" },
-    { host: "github.com", url: "https://github.com", region: "us-east" },
 ];
 
 export function useBrowserAgent() {
@@ -28,6 +26,8 @@ export function useBrowserAgent() {
         isRunningRef.current = true;
 
         const startAgent = async () => {
+            const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
             // 1. Get user location
             let city = "Unknown";
             let country = "Unknown";
@@ -47,18 +47,30 @@ export function useBrowserAgent() {
 
             console.log(`🚀 Browser Agent [${agentId}] started from ${sourceRegion}`);
 
-            // 2. Poll targets periodically
-            const pollTargets = async () => {
-                const measurements = [];
+            // 2. Poll targets and probe periodically
+            const pollAndProbe = async () => {
+                // First, fetch the latest targets from the server
+                let currentTargets = FALLBACK_TARGETS;
+                try {
+                    const tResp = await fetch(`${backendUrl}/api/v1/targets`);
+                    if (tResp.ok) {
+                        const data = await tResp.json();
+                        if (data && data.length > 0) {
+                            currentTargets = data;
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Failed to fetch dynamic targets, using fallbacks", err);
+                }
 
-                for (const target of TARGETS) {
+                const measurements = [];
+                for (const target of currentTargets) {
                     const start = performance.now();
                     let status = "ERROR";
                     let latencyMs = 0;
 
                     try {
                         // Using no-cors to bypass CORS blocks on external domains
-                        // cache: 'no-store' forces a real network request
                         await fetch(target.url, { mode: "no-cors", cache: "no-store", keepalive: false });
                         latencyMs = performance.now() - start;
                         status = "SUCCESS";
@@ -77,8 +89,7 @@ export function useBrowserAgent() {
                     });
                 }
 
-                // 3. POST to backend
-                const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+                // 3. POST measurements to backend
                 try {
                     await fetch(`${backendUrl}/api/v1/measurements`, {
                         method: "POST",
@@ -97,8 +108,8 @@ export function useBrowserAgent() {
             };
 
             // Poll every 5 seconds
-            pollTargets();
-            const interval = setInterval(pollTargets, 5000);
+            pollAndProbe();
+            const interval = setInterval(pollAndProbe, 5000);
 
             return () => clearInterval(interval);
         };
