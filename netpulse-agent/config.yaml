@@ -3,7 +3,7 @@ agent:
   region: "local"
 
 server:
-  url: "http://localhost:8080"
+  url: "https://netpulse-server-8z3g.onrender.com"
 
 targets:
   # Americas
