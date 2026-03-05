@@ -28,4 +28,10 @@ public class TargetController {
     public Target addTarget(@RequestBody AddTargetRequest request) {
         return targetService.addTarget(request.host(), request.url(), request.region());
     }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeTarget(@PathVariable Long id) {
+        targetService.removeTarget(id);
+    }
 }

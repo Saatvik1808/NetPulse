@@ -14,6 +14,15 @@ export interface MeasurementData {
   createdAt: string;
 }
 
+export interface Target {
+  id: number;
+  host: string;
+  url: string;
+  region: string;
+  active: boolean;
+  createdAt: string;
+}
+
 export async function fetchLatestMeasurements(): Promise<MeasurementData[]> {
   const res = await fetch(`${API_BASE_URL}/api/v1/measurements/latest`, {
     cache: "no-store", // don't cache live data

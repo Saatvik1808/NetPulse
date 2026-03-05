@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useMeasurements } from "@/hooks/useMeasurements";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -46,9 +46,21 @@ export default function Home() {
   const [newHost, setNewHost] = useState("");
   const [newRegion, setNewRegion] = useState("");
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
+  const [existingTargets, setExistingTargets] = useState<any[]>([]);
   
   // Terminal tracking
   const [totalPackets, setTotalPackets] = useState(0);
+
+  // Fetch targets when modal opens
+  useEffect(() => {
+    if (modalOpen) {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      fetch(`${backendUrl}/api/v1/targets`)
+        .then(res => res.json())
+        .then(data => setExistingTargets(data))
+        .catch(err => console.error("Fetch targets error:", err));
+    }
+  }, [modalOpen]);
 
   // WebSocket live updates
   const handleNewMeasurement = useCallback(
@@ -204,73 +216,105 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* Add Target Modal */}
+      {/* Target Manager Modal */}
       {modalOpen && (
         <div className="modal-overlay" onClick={() => setModalOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--large" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
-              <span className="modal__title">🎯 Add Target</span>
+              <span className="modal__title">🎯 Target Manager</span>
               <button className="sidebar__close" onClick={() => setModalOpen(false)}>✕</button>
             </div>
             <div className="modal__body">
-              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                Add a new target host to monitor. The agent will begin probing this
-                host on its next cycle.
-              </p>
-              <div className="form-group">
-                <label className="form-group__label">Host / IP</label>
-                <input
-                  className="form-group__input"
-                  placeholder="e.g. cloudflare.com"
-                  value={newHost}
-                  onChange={(e) => setNewHost(e.target.value)}
-                />
+              {/* Add New Target Section */}
+              <div style={{ marginBottom: "2rem", padding: "1.5rem", background: "rgba(255,255,255,0.03)", borderRadius: "12px", border: "1px solid var(--border)" }}>
+                <h4 style={{ margin: "0 0 1rem 0", color: "var(--accent-blue)", fontSize: "0.9rem", letterSpacing: "0.05em" }}>ADD NEW ENDPOINT</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px", gap: "1rem", alignItems: "end" }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-group__label">Host / IP</label>
+                    <input
+                      className="form-group__input"
+                      placeholder="cloudflare.com"
+                      value={newHost}
+                      onChange={(e) => setNewHost(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-group__label">Region</label>
+                    <input
+                      className="form-group__input"
+                      placeholder="global"
+                      value={newRegion}
+                      onChange={(e) => setNewRegion(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    className="btn btn--primary"
+                    style={{ height: "42px" }}
+                    onClick={async () => {
+                      if (!newHost.trim()) return;
+                      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+                      try {
+                        const response = await fetch(`${backendUrl}/api/v1/targets`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            host: newHost.trim(),
+                            url: newHost.startsWith("http") ? newHost.trim() : `https://${newHost.trim()}`,
+                            region: newRegion.trim() || "unknown"
+                          })
+                        });
+                        if (response.ok) {
+                          setNewHost("");
+                          setNewRegion("");
+                          // Refresh target list
+                          const tr = await fetch(`${backendUrl}/api/v1/targets`);
+                          if (tr.ok) setExistingTargets(await tr.json());
+                        }
+                      } catch (err) { console.error(err); }
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
-              <div className="form-group">
-                <label className="form-group__label">Region Label</label>
-                <input
-                  className="form-group__input"
-                  placeholder="e.g. us-west-1"
-                  value={newRegion}
-                  onChange={(e) => setNewRegion(e.target.value)}
-                />
+
+              {/* Existing Targets List */}
+              <h4 style={{ margin: "0 0 1rem 0", color: "var(--text-secondary)", fontSize: "0.9rem", letterSpacing: "0.05em" }}>ACTIVE TARGETS</h4>
+              <div className="target-list" style={{ maxHeight: "300px", overflowY: "auto" }}>
+                {existingTargets.length === 0 ? (
+                  <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem", border: "1px dashed var(--border)", borderRadius: "8px" }}>
+                    No custom targets found.
+                  </div>
+                ) : (
+                  existingTargets.map((t: any) => (
+                    <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", borderBottom: "1px solid var(--border)", background: "rgba(255,255,255,0.02)" }}>
+                      <div>
+                        <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>{t.host}</div>
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t.region} • {t.url}</div>
+                      </div>
+                      <button
+                        className="btn btn--danger"
+                        style={{ padding: "4px 12px", fontSize: "11px", background: "rgba(244, 63, 94, 0.1)", color: "#f43f5e", border: "1px solid rgba(244, 63, 94, 0.2)" }}
+                        onClick={async () => {
+                          if (!confirm(`Stop monitoring ${t.host}?`)) return;
+                          const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+                          try {
+                            const res = await fetch(`${backendUrl}/api/v1/targets/${t.id}`, { method: "DELETE" });
+                            if (res.ok) {
+                              setExistingTargets(existingTargets.filter((item: any) => item.id !== t.id));
+                            }
+                          } catch (err) { console.error(err); }
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
             <div className="modal__footer">
-              <button className="btn" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button
-                className="btn btn--primary"
-                onClick={async () => {
-                  if (!newHost.trim()) return;
-                  
-                  try {
-                    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-                    const response = await fetch(`${backendUrl}/api/v1/targets`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        host: newHost.trim(),
-                        url: newHost.startsWith("http") ? newHost.trim() : `https://${newHost.trim()}`,
-                        region: newRegion.trim() || "unknown"
-                      })
-                    });
-
-                    if (response.ok) {
-                      setNewHost("");
-                      setNewRegion("");
-                      setModalOpen(false);
-                      // In a real app we might toast here
-                    } else {
-                      alert("Failed to add target. Check backend logs.");
-                    }
-                  } catch (err) {
-                    console.error("Add target error", err);
-                    alert("Network error while adding target.");
-                  }
-                }}
-              >
-                ✓ Add Target
-              </button>
+              <button className="btn" onClick={() => setModalOpen(false)}>Close</button>
             </div>
           </div>
         </div>

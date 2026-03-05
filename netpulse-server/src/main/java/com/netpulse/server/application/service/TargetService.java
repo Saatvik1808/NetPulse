@@ -22,4 +22,8 @@ public class TargetService {
         Target newTarget = new Target(null, host, url, region, true, null);
         return targetRepository.save(newTarget);
     }
+
+    public void removeTarget(Long id) {
+        targetRepository.deleteById(id);
+    }
 }

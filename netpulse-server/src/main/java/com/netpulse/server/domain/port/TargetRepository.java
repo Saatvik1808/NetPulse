@@ -9,4 +9,6 @@ public interface TargetRepository {
     List<Target> findAll();
 
     List<Target> findActive();
+
+    void deleteById(Long id);
 }

@@ -51,4 +51,9 @@ public class TargetRepositoryAdapter implements TargetRepository {
                 entity.getActive(),
                 entity.getCreatedAt());
     }
+
+    @Override
+    public void deleteById(Long id) {
+        jpaRepository.softDeleteById(id);
+    }
 }
