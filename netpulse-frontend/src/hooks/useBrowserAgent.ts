@@ -80,12 +80,12 @@ export function useBrowserAgent() {
                     }
 
                     measurements.push({
-                        target_host: target.host,
-                        target_region: target.region,
-                        latency_ms: latencyMs,
-                        packet_loss: status === "SUCCESS" ? 0.0 : 1.0,
+                        targetHost: target.host,
+                        targetRegion: target.region,
+                        latencyMs: latencyMs,
+                        packetLoss: status === "SUCCESS" ? 0.0 : 1.0,
                         status: status,
-                        measured_at: new Date().toISOString(),
+                        measuredAt: new Date().toISOString(),
                     });
                 }
 
@@ -97,8 +97,8 @@ export function useBrowserAgent() {
                             "Content-Type": "application/json",
                         },
                         body: JSON.stringify({
-                            agent_id: agentId,
-                            source_region: sourceRegion,
+                            agentId: agentId,
+                            sourceRegion: sourceRegion,
                             measurements: measurements,
                         }),
                     });
