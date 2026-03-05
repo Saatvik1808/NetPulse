@@ -583,3 +583,84 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(59, 130, 246, 0.4);
 }
+
+/* ── Mobile Responsiveness (< 768px) ── */
+@media (max-width: 768px) {
+
+  /* Header: Stack brand and actions */
+  .header {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    padding: 10px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .header__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* Sidebar: Dock to bottom half instead of full right side */
+  .sidebar {
+    width: calc(100% - 16px);
+    right: 8px;
+    left: 8px;
+    top: auto;
+    bottom: 8px;
+    height: 45vh;
+    /* Keep top half for the globe */
+    border-radius: 16px;
+  }
+
+  .sidebar--hidden {
+    transform: translateY(calc(100% + 20px));
+  }
+
+  /* Adjust terminal log height within shortened sidebar */
+  .terminal-log {
+    max-height: 100%;
+  }
+
+  /* Floating Stats: Move out of the way of the new bottom sidebar */
+  .float-stats {
+    top: 100px;
+    /* Below the expanded mobile header */
+    bottom: auto;
+    left: 8px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    /* Wrap if too many */
+    pointer-events: none;
+    /* Let clicks pass through to globe */
+  }
+
+  .float-pill {
+    padding: 6px 10px;
+    font-size: 11px;
+    pointer-events: auto;
+  }
+
+  /* Modals: Full width minus padding */
+  .modal {
+    width: calc(100% - 24px) !important;
+    max-height: 85vh;
+    overflow-y: auto;
+    margin: 12px;
+  }
+
+  .modal__body {
+    padding: 16px;
+  }
+
+  /* Target Manager Row layout: ensure full width stretch on tiny phones */
+  .form-group {
+    flex: 1 1 100% !important;
+  }
+
+  .modal__body .btn--primary {
+    flex: 1 1 100% !important;
+  }
+}
