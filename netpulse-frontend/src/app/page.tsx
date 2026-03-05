@@ -43,11 +43,15 @@ export default function Home() {
   const [newHost, setNewHost] = useState("");
   const [newRegion, setNewRegion] = useState("");
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
+  
+  // Terminal tracking
+  const [totalPackets, setTotalPackets] = useState(0);
 
   // WebSocket live updates
   const handleNewMeasurement = useCallback(
     (m: MeasurementData) => {
-      setMeasurements((prev: MeasurementData[]) => [m, ...prev].slice(0, 50));
+      setTotalPackets((prev) => prev + 1);
+      setMeasurements((prev: MeasurementData[]) => [m, ...prev].slice(0, 100)); // Keep more history for terminal
     },
     [setMeasurements]
   );
@@ -118,44 +122,52 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Collapsible Sidebar */}
+      {/* Collapsible Sidebar (Technical Dashboard) */}
       <aside className={`sidebar ${!sidebarOpen ? "sidebar--hidden" : ""}`}>
         <div className="sidebar__header">
-          <span className="sidebar__title">Dashboard</span>
+          <span className="sidebar__title">SYSTEM OPS DASHBOARD</span>
           <button className="sidebar__close" onClick={() => setSidebarOpen(false)}>✕</button>
         </div>
 
-        {/* Stats Grid */}
+        {/* Global Overview Grid */}
         <div className="stats">
           <div className="stat-card">
-            <div className="stat-card__label">Avg Latency</div>
+            <div className="stat-card__label">GLOBAL AVG LATENCY</div>
             <div className="stat-card__value stat-card__value--green">
-              {avg.toFixed(1)}<span className="stat-card__unit"> ms</span>
+              {avg.toFixed(1)}<span className="stat-card__unit">ms</span>
             </div>
           </div>
           <div className="stat-card">
-            <div className="stat-card__label">Best</div>
-            <div className="stat-card__value stat-card__value--blue">
-              {min.toFixed(1)}<span className="stat-card__unit"> ms</span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-card__label">Worst</div>
-            <div className="stat-card__value stat-card__value--red">
-              {max.toFixed(1)}<span className="stat-card__unit"> ms</span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-card__label">Targets</div>
+            <div className="stat-card__label">ACTIVE TARGETS</div>
             <div className="stat-card__value stat-card__value--purple">
               {uniqueTargets}
             </div>
           </div>
         </div>
 
-        {/* Live Feed */}
-        <div className="sidebar__header">
-          <span className="sidebar__title">🔴 Live Feed</span>
+        {/* Technical Metrics Panel */}
+        <div className="tech-metrics">
+          <div className="tech-metric-row">
+            <span className="tech-metric-key">PROTOCOL:</span>
+            <span className="tech-metric-val">TCP/HTTP</span>
+          </div>
+          <div className="tech-metric-row">
+            <span className="tech-metric-key">PACKETS_RX:</span>
+            <span className="tech-metric-val" style={{ color: "var(--accent-blue)" }}>{measurements.length + totalPackets}</span>
+          </div>
+          <div className="tech-metric-row">
+            <span className="tech-metric-key">ACTIVE_NODES:</span>
+            <span className="tech-metric-val" style={{ color: "var(--accent-green)" }}>{Array.from(new Set(measurements.map(m => m.sourceRegion))).length}</span>
+          </div>
+          <div className="tech-metric-row">
+            <span className="tech-metric-key">POLL_FREQ:</span>
+            <span className="tech-metric-val">5000ms</span>
+          </div>
+        </div>
+
+        {/* Live Terminal Feed */}
+        <div className="sidebar__header" style={{ borderTop: "1px solid var(--border)", marginTop: "auto" }}>
+          <span className="sidebar__title">TERMINAL I/O</span>
           {selectedTarget && (
             <button
               className="sidebar__close"
@@ -164,41 +176,20 @@ export default function Home() {
             >✕</button>
           )}
         </div>
-        <div className="measurement-list">
-          {measurements.slice(0, 30).map((m) => (
+        <div className="terminal-log">
+          {measurements.slice(0, 40).map((m) => (
             <div
               key={m.id}
-              className={`measurement-item ${
-                selectedTarget === m.targetHost ? "measurement-item--selected" : ""
-              } ${
-                selectedTarget && selectedTarget !== m.targetHost ? "measurement-item--dimmed" : ""
-              }`}
-              onClick={() =>
-                setSelectedTarget(
-                  selectedTarget === m.targetHost ? null : m.targetHost
-                )
-              }
-              style={{ cursor: "pointer" }}
+              className={`terminal-line ${selectedTarget === m.targetHost ? "terminal-line--selected" : ""}`}
+              onClick={() => setSelectedTarget(selectedTarget === m.targetHost ? null : m.targetHost)}
             >
-              <div className="measurement-item__route">
-                <span>{m.sourceRegion}</span>
-                <span className="measurement-item__arrow">→</span>
-                <span>{m.targetHost}</span>
-              </div>
-              <div className="measurement-item__meta">
-                <span
-                  className="measurement-item__latency"
-                  style={{ color: latencyColor(m.latencyMs) }}
-                >
-                  {m.status === "SUCCESS" ? `${m.latencyMs.toFixed(1)} ms` : "TIMEOUT"}
-                </span>
-                <span className={`measurement-item__status measurement-item__status--${m.status.toLowerCase()}`}>
-                  {m.status === "SUCCESS" ? "✓" : "✗"}
-                </span>
-                <span className="measurement-item__time">
-                  {timeAgo(m.createdAt)}
-                </span>
-              </div>
+              <span className="term-time">[{new Date(m.createdAt).toISOString().split('T')[1].slice(0,-1)}]</span>
+              <span className="term-src">{m.sourceRegion}</span>
+              <span className="term-arrow">&gt;</span>
+              <span className="term-tgt">{m.targetHost}</span>
+              <span className="term-status" style={{ color: latencyColor(m.latencyMs) }}>
+                {m.status === "SUCCESS" ? `${m.latencyMs.toFixed(1)}ms` : "TIMEOUT"}
+              </span>
             </div>
           ))}
         </div>
