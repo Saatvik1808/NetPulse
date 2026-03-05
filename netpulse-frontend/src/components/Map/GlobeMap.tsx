@@ -180,11 +180,36 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
     <div style={{ width: "100%", height: "100%", background: "#050816" }}>
       <Globe
         ref={globeRef}
-        onGlobeReady={() => setGlobeReady(true)}
+        onGlobeReady={() => {
+          setGlobeReady(true);
+          // Add clouds layer
+          const globe = globeRef.current;
+          if (globe) {
+            const CLOUDS_IMG_URL = '//unpkg.com/three-globe/example/img/earth-clouds.png';
+            const CLOUDS_ALT = 0.004;
+            const CLOUDS_ROTATION_SPEED = -0.006; // deg/frame
+
+            new (window as any).THREE.TextureLoader().load(CLOUDS_IMG_URL, (cloudsTexture: any) => {
+              const clouds = new (window as any).THREE.Mesh(
+                new (window as any).THREE.SphereGeometry(globe.getGlobeRadius() * (1 + CLOUDS_ALT), 75, 75),
+                new (window as any).THREE.MeshPhongMaterial({ map: cloudsTexture, transparent: true })
+              );
+              globe.scene().add(clouds);
+
+              (function rotateClouds() {
+                clouds.rotation.y += CLOUDS_ROTATION_SPEED * Math.PI / 180;
+                requestAnimationFrame(rotateClouds);
+              })();
+            });
+          }
+        }}
+        
+        // ── HD Realistic Textures ──
         globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+        bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
         backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-        atmosphereColor="#4f46e5"
-        atmosphereAltitude={0.2}
+        atmosphereColor="#3a228a"
+        atmosphereAltitude={0.25}
 
         // ── Neon Arcs ──
         arcsData={arcsData}
@@ -200,11 +225,11 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
         pointsData={pointsData}
         pointColor={(d: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           const p = d as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-          if (!p.isPointSelected) return "#ffffff15";
-          return p.isSource ? "#00b0ff" : "#e040fb";
+          if (!p.isPointSelected) return "#ffffff10";
+          return p.isSource ? "#00b0ff" : "#f43f5e";
         }}
         pointAltitude={0.015}
-        pointRadius={(d: any) => (d as any).isPointSelected ? 0.5 : 0.25} // eslint-disable-line @typescript-eslint/no-explicit-any
+        pointRadius={(d: any) => (d as any).isPointSelected ? 0.6 : 0.3} // eslint-disable-line @typescript-eslint/no-explicit-any
         pointLabel="label"
         pointsMerge={false}
 
@@ -224,13 +249,13 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
           const el = document.createElement("div");
           const data = d as any; // eslint-disable-line @typescript-eslint/no-explicit-any
           const isSource = data.isSource;
-          const color = isSource ? "#00b0ff" : "#e040fb";
+          const color = isSource ? "#00b0ff" : "#f43f5e";
           el.innerHTML = `<div style="
-            width: 6px; height: 6px;
+            width: 8px; height: 8px;
             background: ${color};
             border-radius: 50%;
-            box-shadow: 0 0 8px ${color}, 0 0 16px ${color}80, 0 0 24px ${color}40;
-            animation: neonPulse 1.5s ease-in-out infinite alternate;
+            box-shadow: 0 0 10px ${color}, 0 0 20px ${color}80, 0 0 30px ${color}40;
+            animation: neonPulse 2s ease-in-out infinite alternate;
           "></div>`;
           el.style.cssText = "pointer-events: none;";
           return el;
@@ -238,8 +263,8 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
       />
       <style jsx global>{`
         @keyframes neonPulse {
-          from { opacity: 0.6; transform: scale(1); }
-          to { opacity: 1; transform: scale(1.8); }
+          from { opacity: 0.5; transform: scale(1); }
+          to { opacity: 1; transform: scale(2.2); }
         }
       `}</style>
     </div>
