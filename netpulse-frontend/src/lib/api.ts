@@ -35,6 +35,7 @@ export async function fetchLatestMeasurements(): Promise<MeasurementData[]> {
 
 // Map known regions/hosts to lat/lng for map plotting
 // In production, this would come from the agents table
+// Map known regions/hosts to lat/lng for map plotting
 export const COORDINATES: Record<string, [number, number]> = {
   // Agent regions
   "local": [20.5937, 78.9629],            // India (your dev machine)
@@ -53,8 +54,35 @@ export const COORDINATES: Record<string, [number, number]> = {
   // Target hosts
   "google": [37.386, -122.0838],           // Mountain View
   "google-dns": [37.386, -122.0838],
+  "dns.google": [37.386, -122.0838],
   "cloudflare-dns": [37.7749, -122.4194],  // San Francisco
   "cloudflare": [37.7749, -122.4194],
   "github": [37.7749, -122.4194],          // San Francisco
   "netflix": [37.2431, -121.8863],         // Los Gatos
+  "aws.amazon": [47.6062, -122.3321],      // Seattle
 };
+
+export function getCoordinates(key: string): [number, number] {
+  if (!key) return [0, 0];
+  if (COORDINATES[key]) return COORDINATES[key];
+
+  // Basic substring matching for known tech companies/hosts
+  const lowerKey = key.toLowerCase();
+  for (const known of Object.keys(COORDINATES)) {
+    if (lowerKey.includes(known)) {
+      return COORDINATES[known];
+    }
+  }
+
+  // Generate deterministic pseudo-random coordinates for unknown regions
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = key.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const lat = -50 + Math.abs(hash % 100); // -50 to +50 to avoid extreme poles
+  const lng = -160 + Math.abs((hash >> 8) % 320); // spread across longitudes
+
+  const coords: [number, number] = [lat, lng];
+  COORDINATES[key] = coords; // Cache it for consistency
+  return coords;
+}

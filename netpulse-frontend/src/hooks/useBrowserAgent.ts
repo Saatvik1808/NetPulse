@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { COORDINATES } from "../lib/api";
 
 interface TargetInfo {
     host: string;
@@ -46,6 +47,10 @@ export function useBrowserAgent(enabled: boolean = true, intervalMs: number = 50
                     if (data.city) city = data.city;
                     const country = data.country_name || "Unknown";
                     sourceRegionLocal = `${city}, ${country}`;
+
+                    if (data.latitude && data.longitude) {
+                        COORDINATES[sourceRegionLocal] = [data.latitude, data.longitude];
+                    }
                 } catch (err) {
                     console.error("Failed to get location from ipapi.co", err);
                     city = "Unknown";

@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { MeasurementData, COORDINATES } from "@/lib/api";
+import { MeasurementData, COORDINATES, getCoordinates } from "@/lib/api";
 
 const Globe = dynamic(() => import("react-globe.gl"), { ssr: false });
 
@@ -63,16 +63,16 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
 
     return Array.from(latestByPair.values())
       .filter((m) => {
-        const src = COORDINATES[m.sourceRegion];
+        const src = getCoordinates(m.sourceRegion);
         const tgtKey = m.targetRegion || m.targetHost;
-        const tgt = COORDINATES[tgtKey];
+        const tgt = getCoordinates(tgtKey);
         return src && tgt;
       })
       .map((m) => {
         const isPointSelected = !selectedTarget || m.targetHost === selectedTarget || m.sourceRegion === selectedTarget;
-        const src = COORDINATES[m.sourceRegion];
+        const src = getCoordinates(m.sourceRegion);
         const tgtKey = m.targetRegion || m.targetHost;
-        const tgt = COORDINATES[tgtKey]!;
+        const tgt = getCoordinates(tgtKey);
         const [startColor, endColor] = latencyColor(m.latencyMs);
         const targetKey = m.targetRegion || m.targetHost;
         const isSelected = !selectedTarget || m.targetHost === selectedTarget;
@@ -121,7 +121,7 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
     >();
 
     measurements.forEach((m) => {
-      const src = COORDINATES[m.sourceRegion];
+      const src = getCoordinates(m.sourceRegion);
       if (src && !points.has(m.sourceRegion)) {
         const srcSelected = !selectedTarget;
         points.set(m.sourceRegion, {
@@ -143,7 +143,7 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
         });
       }
       const tgtKey = m.targetRegion || m.targetHost;
-      const tgt = COORDINATES[tgtKey];
+      const tgt = getCoordinates(tgtKey);
       if (tgt && !points.has(tgtKey)) {
         const color = latencySingleColor(m.latencyMs);
         const tgtSelected = !selectedTarget || m.targetHost === selectedTarget;
