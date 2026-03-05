@@ -7,16 +7,15 @@ import java.time.Instant;
 import java.util.List;
 
 public record IngestRequest(
-        @NotBlank String agentId,
-        @NotBlank String sourceRegion,
-        @NotEmpty @Valid List<MeasurementEntry> measurements
-) {
-    public record MeasurementEntry(
-            @NotBlank String targetHost,
-            String targetRegion,
-            double latencyMs,
-            double packetLoss,
-            @NotBlank String status,
-            Instant measuredAt
-    ) {}
+                @NotBlank String agentId,
+                @NotBlank String sourceRegion,
+                @NotEmpty @Valid List<MeasurementEntry> measurements) {
+        public record MeasurementEntry(
+                        @NotBlank String targetHost,
+                        String targetRegion,
+                        Double latencyMs,
+                        Double packetLoss,
+                        @NotBlank String status,
+                        Instant measuredAt) {
+        }
 }
