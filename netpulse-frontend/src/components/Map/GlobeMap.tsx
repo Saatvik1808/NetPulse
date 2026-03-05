@@ -1,0 +1,245 @@
+"use client";
+
+import { useRef, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { MeasurementData, COORDINATES } from "@/lib/api";
+
+const Globe = dynamic(() => import("react-globe.gl"), { ssr: false });
+
+interface GlobeMapProps {
+  measurements: MeasurementData[];
+  selectedTarget: string | null;
+}
+
+// Neon color palette — vivid, saturated, glowing
+function latencyColor(ms: number): [string, string] {
+  // Returns [startColor, endColor] for gradient arcs
+  if (ms <= 0) return ["#ff1744", "#ff5252"];        // neon red
+  if (ms < 20) return ["#00e676", "#69f0ae"];        // neon green
+  if (ms < 50) return ["#76ff03", "#b2ff59"];        // neon lime
+  if (ms < 100) return ["#ffea00", "#ffff00"];       // neon yellow
+  if (ms < 200) return ["#ff9100", "#ffab40"];       // neon orange
+  return ["#ff1744", "#ff5252"];                      // neon red
+}
+
+function latencySingleColor(ms: number): string {
+  if (ms <= 0) return "#ff1744";
+  if (ms < 20) return "#00e676";
+  if (ms < 50) return "#76ff03";
+  if (ms < 100) return "#ffea00";
+  if (ms < 200) return "#ff9100";
+  return "#ff1744";
+}
+
+export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps) {
+  const globeRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [globeReady, setGlobeReady] = useState(false);
+
+  // Auto-rotate & initial position
+  useEffect(() => {
+    if (globeRef.current && globeReady) {
+      const controls = globeRef.current.controls();
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.3;
+      controls.enableZoom = true;
+      controls.minDistance = 150;
+      controls.maxDistance = 500;
+
+      // Point camera at India
+      globeRef.current.pointOfView({ lat: 20, lng: 78, altitude: 2.2 }, 1500);
+    }
+  }, [globeReady]);
+
+  // Build arcs from measurements
+  const arcsData = useMemo(() => {
+    const latestByPair = new Map<string, MeasurementData>();
+    measurements.forEach((m) => {
+      const key = `${m.sourceRegion}-${m.targetRegion || m.targetHost}`;
+      const existing = latestByPair.get(key);
+      if (!existing || m.measuredAt > existing.measuredAt) {
+        latestByPair.set(key, m);
+      }
+    });
+
+    return Array.from(latestByPair.values())
+      .filter((m) => {
+        const src = COORDINATES[m.sourceRegion];
+        const tgt = COORDINATES[m.targetRegion] || COORDINATES[m.targetHost];
+        return src && tgt;
+      })
+      .map((m) => {
+        const isPointSelected = !selectedTarget || m.targetHost === selectedTarget || m.sourceRegion === selectedTarget;
+        const src = COORDINATES[m.sourceRegion];
+        const tgt = (COORDINATES[m.targetRegion] || COORDINATES[m.targetHost])!;
+        const [startColor, endColor] = latencyColor(m.latencyMs);
+        const targetKey = m.targetRegion || m.targetHost;
+        const isSelected = !selectedTarget || m.targetHost === selectedTarget;
+        return {
+          startLat: src[0],
+          startLng: src[1],
+          endLat: tgt[0],
+          endLng: tgt[1],
+          startColor: isSelected ? startColor : startColor + "25",
+          endColor: isSelected ? endColor : endColor + "25",
+          targetKey,
+          targetHost: m.targetHost,
+          latencyMs: m.latencyMs,
+          strokeWidth: isSelected ? (selectedTarget ? 1.4 : 0.8) : 0.3,
+          label: `<div style="
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(5, 8, 22, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid ${startColor}40;
+            border-radius: 8px;
+            padding: 8px 12px;
+            box-shadow: 0 0 20px ${startColor}30;
+            font-size: 12px;
+            color: #f1f5f9;
+          ">
+            <div style="margin-bottom: 4px; font-weight: 600;">
+              ${m.sourceRegion} <span style="color: ${startColor};">→</span> ${m.targetHost}
+            </div>
+            <div style="color: ${startColor}; font-size: 14px; font-weight: 700;">
+              ${m.status === "SUCCESS" ? m.latencyMs.toFixed(1) + " ms" : "TIMEOUT"}
+            </div>
+            <div style="font-size: 10px; color: #64748b; margin-top: 2px;">
+              Loss: ${(m.packetLoss * 100).toFixed(0)}%
+            </div>
+          </div>`,
+          status: m.status,
+        };
+      });
+  }, [measurements, selectedTarget]);
+
+  // Build points
+  const pointsData = useMemo(() => {
+    const points = new Map<
+      string,
+      { lat: number; lng: number; label: string; isSource: boolean; latencyMs: number; isPointSelected: boolean }
+    >();
+
+    measurements.forEach((m) => {
+      const src = COORDINATES[m.sourceRegion];
+      if (src && !points.has(m.sourceRegion)) {
+        const srcSelected = !selectedTarget;
+        points.set(m.sourceRegion, {
+          lat: src[0],
+          lng: src[1],
+          isPointSelected: srcSelected,
+          label: `<div style="
+            font-family: 'Inter', sans-serif;
+            background: rgba(5, 8, 22, 0.85);
+            border: 1px solid #3b82f640;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: #60a5fa;
+            box-shadow: 0 0 12px #3b82f630;
+          ">📡 ${m.sourceRegion}</div>`,
+          isSource: true,
+          latencyMs: 0,
+        });
+      }
+      const tgtKey = m.targetRegion || m.targetHost;
+      const tgt = COORDINATES[m.targetRegion] || COORDINATES[m.targetHost];
+      if (tgt && !points.has(tgtKey)) {
+        const color = latencySingleColor(m.latencyMs);
+        const tgtSelected = !selectedTarget || m.targetHost === selectedTarget;
+        points.set(tgtKey, {
+          lat: tgt[0],
+          lng: tgt[1],
+          isPointSelected: tgtSelected,
+          label: `<div style="
+            font-family: 'Inter', sans-serif;
+            background: rgba(5, 8, 22, 0.85);
+            border: 1px solid ${color}40;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: ${color};
+            box-shadow: 0 0 12px ${color}30;
+          ">🎯 ${tgtKey}</div>`,
+          isSource: false,
+          latencyMs: m.latencyMs,
+        });
+      }
+    });
+
+    return Array.from(points.values());
+  }, [measurements, selectedTarget]);
+
+  // Source points for rings
+  const ringsData = useMemo(
+    () => pointsData.filter((p) => p.isSource),
+    [pointsData]
+  );
+
+  return (
+    <div style={{ width: "100%", height: "100%", background: "#050816" }}>
+      <Globe
+        ref={globeRef}
+        onGlobeReady={() => setGlobeReady(true)}
+        globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+        backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+        atmosphereColor="#4f46e5"
+        atmosphereAltitude={0.2}
+
+        // ── Neon Arcs ──
+        arcsData={arcsData}
+        arcColor={(d: any) => [(d as any).startColor, (d as any).endColor]} // eslint-disable-line @typescript-eslint/no-explicit-any
+        arcDashLength={0.6}
+        arcDashGap={0.15}
+        arcDashAnimateTime={() => 800 + Math.random() * 700}
+        arcStroke={(d: any) => (d as any).strokeWidth} // eslint-disable-line @typescript-eslint/no-explicit-any
+        arcLabel="label"
+        arcAltitudeAutoScale={0.5}
+
+        // ── Glowing Points ──
+        pointsData={pointsData}
+        pointColor={(d: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+          const p = d as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+          if (!p.isPointSelected) return "#ffffff15";
+          return p.isSource ? "#00b0ff" : "#e040fb";
+        }}
+        pointAltitude={0.015}
+        pointRadius={(d: any) => (d as any).isPointSelected ? 0.5 : 0.25} // eslint-disable-line @typescript-eslint/no-explicit-any
+        pointLabel="label"
+        pointsMerge={false}
+
+        // ── Pulse Rings at agents ──
+        ringsData={ringsData}
+        ringColor={() => (t: number) => `rgba(0, 176, 255, ${(1 - t) * 0.8})`}
+        ringMaxRadius={4}
+        ringPropagationSpeed={3}
+        ringRepeatPeriod={1200}
+
+        // ── HTML Labels for key points ──
+        htmlElementsData={pointsData}
+        htmlLat={(d: any) => (d as any).lat} // eslint-disable-line @typescript-eslint/no-explicit-any
+        htmlLng={(d: any) => (d as any).lng} // eslint-disable-line @typescript-eslint/no-explicit-any
+        htmlAltitude={0.04}
+        htmlElement={(d: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+          const el = document.createElement("div");
+          const data = d as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+          const isSource = data.isSource;
+          const color = isSource ? "#00b0ff" : "#e040fb";
+          el.innerHTML = `<div style="
+            width: 6px; height: 6px;
+            background: ${color};
+            border-radius: 50%;
+            box-shadow: 0 0 8px ${color}, 0 0 16px ${color}80, 0 0 24px ${color}40;
+            animation: neonPulse 1.5s ease-in-out infinite alternate;
+          "></div>`;
+          el.style.cssText = "pointer-events: none;";
+          return el;
+        }}
+      />
+      <style jsx global>{`
+        @keyframes neonPulse {
+          from { opacity: 0.6; transform: scale(1); }
+          to { opacity: 1; transform: scale(1.8); }
+        }
+      `}</style>
+    </div>
+  );
+}

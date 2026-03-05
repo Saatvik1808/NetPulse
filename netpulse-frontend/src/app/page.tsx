@@ -1,0 +1,268 @@
+"use client";
+
+import { useState, useCallback } from "react";
+import dynamic from "next/dynamic";
+import { useMeasurements } from "@/hooks/useMeasurements";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { MeasurementData } from "@/lib/api";
+import "./globals.css";
+
+// 3D Globe — client-side only
+const GlobeMap = dynamic(() => import("@/components/Map/GlobeMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="loading">
+      <div className="loading__spinner" />
+      <div className="loading__text">Loading 3D Globe...</div>
+    </div>
+  ),
+});
+
+function latencyColor(ms: number): string {
+  if (ms <= 0) return "var(--accent-red)";
+  if (ms < 20) return "var(--accent-green)";
+  if (ms < 50) return "#84cc16";
+  if (ms < 100) return "var(--accent-yellow)";
+  if (ms < 200) return "var(--accent-orange)";
+  return "var(--accent-red)";
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 5) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ago`;
+}
+
+export default function Home() {
+  const { measurements, setMeasurements, loading, error } = useMeasurements(0);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [newHost, setNewHost] = useState("");
+  const [newRegion, setNewRegion] = useState("");
+  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
+
+  // WebSocket live updates
+  const handleNewMeasurement = useCallback(
+    (m: MeasurementData) => {
+      setMeasurements((prev: MeasurementData[]) => [m, ...prev].slice(0, 50));
+    },
+    [setMeasurements]
+  );
+  const { connected } = useWebSocket(handleNewMeasurement);
+
+  if (loading) {
+    return (
+      <div className="loading">
+        <div className="loading__spinner" />
+        <div className="loading__text">Connecting to NetPulse...</div>
+      </div>
+    );
+  }
+
+  // Stats
+  const success = measurements.filter((m) => m.status === "SUCCESS");
+  const avg = success.length > 0
+    ? success.reduce((s, m) => s + m.latencyMs, 0) / success.length : 0;
+  const min = success.length > 0
+    ? Math.min(...success.map((m) => m.latencyMs)) : 0;
+  const max = success.length > 0
+    ? Math.max(...success.map((m) => m.latencyMs)) : 0;
+  const uniqueTargets = new Set(measurements.map((m) => m.targetHost)).size;
+
+  return (
+    <div className="app">
+      {/* 3D Globe — fills viewport */}
+      <div className="globe-container">
+        <GlobeMap measurements={measurements} selectedTarget={selectedTarget} />
+      </div>
+
+      {/* Floating Header */}
+      <header className="header">
+        <div className="header__brand">
+          <span className="header__logo">⚡ NetPulse</span>
+          <span className="header__subtitle">Global Latency Monitor</span>
+        </div>
+        <div className="header__actions">
+          <div className="header__status">
+            <span className={`header__dot ${!connected ? "header__dot--connecting" : ""}`} />
+            <span>
+              {error
+                ? "Disconnected"
+                : connected
+                ? "Live"
+                : "Connecting..."}
+            </span>
+          </div>
+          <button className="btn btn--primary" onClick={() => setModalOpen(true)}>
+            + Add Target
+          </button>
+          <button className="btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            {sidebarOpen ? "✕ Close" : "☰ Dashboard"}
+          </button>
+        </div>
+      </header>
+
+      {/* Floating Stats Pills (bottom left) */}
+      <div className="float-stats">
+        <div className="float-pill">
+          🎯 Targets: <span className="float-pill__value" style={{ color: "var(--accent-purple)" }}>{uniqueTargets}</span>
+        </div>
+        <div className="float-pill">
+          📡 Probes: <span className="float-pill__value" style={{ color: "var(--accent-blue)" }}>{measurements.length}</span>
+        </div>
+        <div className="float-pill">
+          ⚡ Avg: <span className="float-pill__value" style={{ color: "var(--accent-green)" }}>{avg.toFixed(1)} ms</span>
+        </div>
+      </div>
+
+      {/* Collapsible Sidebar */}
+      <aside className={`sidebar ${!sidebarOpen ? "sidebar--hidden" : ""}`}>
+        <div className="sidebar__header">
+          <span className="sidebar__title">📊 Dashboard</span>
+          <button className="sidebar__close" onClick={() => setSidebarOpen(false)}>✕</button>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="stats">
+          <div className="stat-card">
+            <div className="stat-card__label">Avg Latency</div>
+            <div className="stat-card__value stat-card__value--green">
+              {avg.toFixed(1)}<span className="stat-card__unit"> ms</span>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-card__label">Best</div>
+            <div className="stat-card__value stat-card__value--blue">
+              {min.toFixed(1)}<span className="stat-card__unit"> ms</span>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-card__label">Worst</div>
+            <div className="stat-card__value stat-card__value--red">
+              {max.toFixed(1)}<span className="stat-card__unit"> ms</span>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-card__label">Targets</div>
+            <div className="stat-card__value stat-card__value--purple">
+              {uniqueTargets}
+            </div>
+          </div>
+        </div>
+
+        {/* Live Feed */}
+        <div className="sidebar__header">
+          <span className="sidebar__title">🔴 Live Feed</span>
+          {selectedTarget && (
+            <button
+              className="sidebar__close"
+              onClick={() => setSelectedTarget(null)}
+              title="Clear filter"
+            >✕</button>
+          )}
+        </div>
+        <div className="measurement-list">
+          {measurements.slice(0, 30).map((m) => (
+            <div
+              key={m.id}
+              className={`measurement-item ${
+                selectedTarget === m.targetHost ? "measurement-item--selected" : ""
+              } ${
+                selectedTarget && selectedTarget !== m.targetHost ? "measurement-item--dimmed" : ""
+              }`}
+              onClick={() =>
+                setSelectedTarget(
+                  selectedTarget === m.targetHost ? null : m.targetHost
+                )
+              }
+              style={{ cursor: "pointer" }}
+            >
+              <div className="measurement-item__route">
+                <span>{m.sourceRegion}</span>
+                <span className="measurement-item__arrow">→</span>
+                <span>{m.targetHost}</span>
+              </div>
+              <div className="measurement-item__meta">
+                <span
+                  className="measurement-item__latency"
+                  style={{ color: latencyColor(m.latencyMs) }}
+                >
+                  {m.status === "SUCCESS" ? `${m.latencyMs.toFixed(1)} ms` : "TIMEOUT"}
+                </span>
+                <span className={`measurement-item__status measurement-item__status--${m.status.toLowerCase()}`}>
+                  {m.status === "SUCCESS" ? "✓" : "✗"}
+                </span>
+                <span className="measurement-item__time">
+                  {timeAgo(m.createdAt)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* Add Target Modal */}
+      {modalOpen && (
+        <div className="modal-overlay" onClick={() => setModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header">
+              <span className="modal__title">🎯 Add Target</span>
+              <button className="sidebar__close" onClick={() => setModalOpen(false)}>✕</button>
+            </div>
+            <div className="modal__body">
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                Add a new target host to monitor. The agent will begin probing this
+                host on its next cycle.
+              </p>
+              <div className="form-group">
+                <label className="form-group__label">Host / IP</label>
+                <input
+                  className="form-group__input"
+                  placeholder="e.g. cloudflare.com"
+                  value={newHost}
+                  onChange={(e) => setNewHost(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-group__label">Region Label</label>
+                <input
+                  className="form-group__input"
+                  placeholder="e.g. us-west-1"
+                  value={newRegion}
+                  onChange={(e) => setNewRegion(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="modal__footer">
+              <button className="btn" onClick={() => setModalOpen(false)}>Cancel</button>
+              <button
+                className="btn btn--primary"
+                onClick={() => {
+                  if (newHost.trim()) {
+                    alert(
+                      `To add "${newHost}" as a target:\n\n` +
+                      `1. Open netpulse-agent/config.yaml\n` +
+                      `2. Add under targets:\n` +
+                      `   - host: "${newHost}"\n` +
+                      `     region: "${newRegion || "unknown"}"\n` +
+                      `3. Restart the agent\n\n` +
+                      `In Phase 3, this will be automated via the API.`
+                    );
+                    setNewHost("");
+                    setNewRegion("");
+                    setModalOpen(false);
+                  }
+                }}
+              >
+                ✓ Add Target
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

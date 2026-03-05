@@ -1,0 +1,52 @@
+agent:
+  id: "agent-local-dev"
+  region: "local"
+
+server:
+  url: "http://localhost:8080"
+
+targets:
+  # Americas
+  - host: "google.com"
+    region: "google"
+  - host: "github.com"
+    region: "github"
+  - host: "netflix.com"
+    region: "netflix"
+  - host: "microsoft.com"
+    region: "us-west-2"
+  - host: "amazon.com"
+    region: "us-east-1"
+  - host: "shopify.com"
+    region: "ca-central-1"
+
+  # Europe
+  - host: "bbc.co.uk"
+    region: "eu-west-1"
+  - host: "sap.com"
+    region: "eu-central-1"
+  - host: "spotify.com"
+    region: "eu-north-1"
+
+  # Asia
+  - host: "flipkart.com"
+    region: "ap-south-1"
+  - host: "toyota.jp"
+    region: "ap-northeast-1"
+  - host: "alibaba.com"
+    region: "cn-east"
+  - host: "samsung.com"
+    region: "ap-northeast-2"
+
+  # Oceania
+  - host: "news.com.au"
+    region: "ap-southeast-2"
+
+  # CDN / Infra
+  - host: "1.1.1.1"
+    region: "cloudflare"
+  - host: "cloudflare.com"
+    region: "cloudflare"
+
+schedule:
+  interval_seconds: 10

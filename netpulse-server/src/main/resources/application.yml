@@ -1,0 +1,13 @@
+spring:
+    datasource:
+        url: jdbc:postgresql://localhost:5432/netpulse
+        username: netpulse
+        password: netpulse
+    jpa:
+        hibernate:
+            ddl-auto: validate  # Flyway manages schema, not Hibernate
+    flyway:
+        enabled: true
+
+server:
+    port: 8080
