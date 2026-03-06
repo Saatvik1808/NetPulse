@@ -100,7 +100,7 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
           targetKey,
           targetHost: m.targetHost,
           latencyMs: m.latencyMs,
-          strokeWidth: isSelected ? (selectedTarget ? 0.8 : 0.3) : 0.1,
+          strokeWidth: isSelected ? (selectedTarget ? 1.5 : 0.8) : 0.4,
           label: `<div style="
             font-family: 'JetBrains Mono', monospace;
             background: rgba(5, 8, 22, 0.9);
@@ -293,7 +293,7 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
           startLat: from[0], startLng: from[1],
           endLat: to[0], endLng: to[1],
           startColor: '#00e5ff', endColor: '#00b8d4',
-          strokeWidth: 0.6,
+          strokeWidth: 1.2,
           label: `<div style="font-family:'JetBrains Mono',monospace;background:rgba(0,229,255,0.15);border:1px solid #00e5ff40;border-radius:6px;padding:8px 12px;color:#e0f7fa;font-size:11px;">Hop ${hopsWithCoords[i].hopNumber} → ${hopsWithCoords[i + 1].hopNumber}<br/>${hopsWithCoords[i].hopIp} → ${hopsWithCoords[i + 1].hopIp}<br/>RTT: ${hopsWithCoords[i + 1].hopRttMs.toFixed(1)} ms</div>`,
           isTraceroute: true,
         });
@@ -331,7 +331,7 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
           // Add clouds layer directly to THIS globe's scene
           const globe = globeRef.current;
           if (globe) {
-            const CLOUDS_IMG_URL = '//unpkg.com/three-globe/example/img/earth-clouds.png';
+            const CLOUDS_IMG_URL = '//upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Solarsystemscope_texture_8k_earth_clouds.jpg/8192px-Solarsystemscope_texture_8k_earth_clouds.jpg';
             const CLOUDS_ALT = 0.004;
             const CLOUDS_ROTATION_SPEED = -0.006; // deg/frame
 
@@ -380,10 +380,10 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
         }}
         
         // ── HD Realistic Textures ──
-        globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+        globeImageUrl="//upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Solarsystemscope_texture_8k_earth_daymap.jpg/8192px-Solarsystemscope_texture_8k_earth_daymap.jpg"
         bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
         backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-        atmosphereColor="lightskyblue"
+        atmosphereColor="#3a60df"
         atmosphereAltitude={0.15}
 
         // ── Neon Arcs ──
