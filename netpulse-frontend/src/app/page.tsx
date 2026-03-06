@@ -145,7 +145,11 @@ export default function Home() {
     <div className="app">
       {/* 3D Globe — fills viewport */}
       <div className="globe-container" onContextMenuCapture={(e) => e.stopPropagation()}>
-        <GlobeMap measurements={measurements} selectedTarget={selectedTarget} />
+        <GlobeMap 
+          measurements={measurements} 
+          selectedTarget={selectedTarget} 
+          onSelectNode={setSelectedTarget}
+        />
       </div>
 
       {/* Floating Header */}

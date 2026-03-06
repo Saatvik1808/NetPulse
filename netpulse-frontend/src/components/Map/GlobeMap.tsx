@@ -11,6 +11,7 @@ const Globe = dynamic(() => import("react-globe.gl"), { ssr: false });
 interface GlobeMapProps {
   measurements: MeasurementData[];
   selectedTarget: string | null;
+  onSelectNode?: (target: string | null) => void;
 }
 
 // Neon color palette — vivid, saturated, glowing
@@ -33,15 +34,16 @@ function latencySingleColor(ms: number): string {
   return "#ff1744";
 }
 
-export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps) {
+export default function GlobeMap({ measurements, selectedTarget, onSelectNode }: GlobeMapProps) {
   const globeRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [globeReady, setGlobeReady] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Auto-rotate & initial position
   useEffect(() => {
     if (globeRef.current && globeReady) {
       const controls = globeRef.current.controls();
-      controls.autoRotate = true;
+      controls.autoRotate = !isHovered; // Pause when interacting
       controls.autoRotateSpeed = 0.3;
       controls.enableZoom = true;
       controls.minDistance = 150;
@@ -50,7 +52,7 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
       // Point camera at India
       globeRef.current.pointOfView({ lat: 20, lng: 78, altitude: 2.2 }, 1500);
     }
-  }, [globeReady]);
+  }, [globeReady, isHovered]);
 
   // Build arcs from measurements
   const arcsData = useMemo(() => {
@@ -119,8 +121,23 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
   const pointsData = useMemo(() => {
     const points = new Map<
       string,
-      { lat: number; lng: number; label: string; isSource: boolean; latencyMs: number; isPointSelected: boolean }
+      { lat: number; lng: number; label: string; isSource: boolean; latencyMs: number; isPointSelected: boolean; targetKey: string }
     >();
+    
+    // Calculate aggregate stats for in-depth details
+    const statsInfo = new Map<string, { count: number; totalLatency: number; lossCount: number; status: string }>();
+    measurements.forEach(m => {
+      const key = m.targetRegion || m.targetHost;
+      if (!statsInfo.has(key)) statsInfo.set(key, { count: 0, totalLatency: 0, lossCount: 0, status: "" });
+      const stat = statsInfo.get(key)!;
+      stat.count++;
+      if (m.status === "SUCCESS") {
+        stat.totalLatency += m.latencyMs;
+        stat.status = "SUCCESS";
+      } else {
+        stat.lossCount++;
+      }
+    });
 
     measurements.forEach((m) => {
       const src = getCoordinates(m.sourceRegion);
@@ -130,16 +147,20 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
           lat: src[0],
           lng: src[1],
           isPointSelected: srcSelected,
+          targetKey: m.sourceRegion,
           label: `<div style="
             font-family: 'Inter', sans-serif;
-            background: rgba(5, 8, 22, 0.85);
-            border: 1px solid #3b82f640;
-            border-radius: 6px;
-            padding: 4px 8px;
-            font-size: 11px;
-            color: #60a5fa;
-            box-shadow: 0 0 12px #3b82f630;
-          ">${m.sourceRegion}</div>`,
+            background: rgba(5, 8, 22, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid #3b82f660;
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #f1f5f9;
+            box-shadow: 0 0 20px #3b82f630;
+          ">
+            <div style="font-weight: 700; color: #60a5fa; font-size: 14px; margin-bottom: 2px;">${m.sourceRegion}</div>
+            <div style="font-size: 11px; color: #94a3b8;">Local Agent Node</div>
+          </div>`,
           isSource: true,
           latencyMs: 0,
         });
@@ -149,20 +170,41 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
       if (tgt && !points.has(tgtKey)) {
         const color = latencySingleColor(m.latencyMs);
         const tgtSelected = !selectedTarget || m.targetHost === selectedTarget;
+        const stat = statsInfo.get(tgtKey)!;
+        const avgLat = stat.count - stat.lossCount > 0 ? (stat.totalLatency / (stat.count - stat.lossCount)).toFixed(1) : 0;
+        const lossPer = ((stat.lossCount / stat.count) * 100).toFixed(0);
+        
         points.set(tgtKey, {
           lat: tgt[0],
           lng: tgt[1],
           isPointSelected: tgtSelected,
+          targetKey: m.targetHost,
           label: `<div style="
-            font-family: 'Inter', sans-serif;
-            background: rgba(5, 8, 22, 0.85);
-            border: 1px solid ${color}40;
-            border-radius: 6px;
-            padding: 4px 8px;
-            font-size: 11px;
-            color: ${color};
-            box-shadow: 0 0 12px ${color}30;
-          ">${tgtKey}</div>`,
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(5, 8, 22, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid ${color}60;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #f1f5f9;
+            box-shadow: 0 0 25px ${color}40;
+            min-width: 140px;
+          ">
+            <div style="font-weight: 700; font-size: 14px; color: ${color}; margin-bottom: 4px;">${m.targetHost}</div>
+            <div style="font-size: 12px; color: #94a3b8; font-family: 'Inter', sans-serif; margin-bottom: 8px;">${tgtKey}</div>
+            <div style="display: flex; justify-content: space-between; border-top: 1px solid #334155; padding-top: 8px; font-size: 12px;">
+              <span style="color: #94a3b8;">Avg Latency</span>
+              <span style="font-weight: 600;">${avgLat} ms</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px;">
+              <span style="color: #94a3b8;">Packet Loss</span>
+              <span style="font-weight: 600; color: ${Number(lossPer) > 0 ? '#ff1744' : '#f1f5f9'};">${lossPer}%</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px;">
+              <span style="color: #94a3b8;">Total Probes</span>
+              <span style="font-weight: 600;">${stat.count}</span>
+            </div>
+          </div>`,
           isSource: false,
           latencyMs: m.latencyMs,
         });
@@ -234,6 +276,18 @@ export default function GlobeMap({ measurements, selectedTarget }: GlobeMapProps
         pointRadius={(d: any) => (d as any).isPointSelected ? 0.6 : 0.3} 
         pointLabel="label"
         pointsMerge={false}
+        onPointHover={(point: any) => setIsHovered(!!point)}
+        onPointClick={(point: any) => {
+          if (onSelectNode && point && !point.isSource) {
+             onSelectNode(point.targetKey === selectedTarget ? null : point.targetKey);
+          }
+        }}
+        onArcHover={(arc: any) => setIsHovered(!!arc)}
+        onArcClick={(arc: any) => {
+          if (onSelectNode && arc) {
+             onSelectNode(arc.targetHost === selectedTarget ? null : arc.targetHost);
+          }
+        }}
 
         // ── Pulse Rings at agents ──
         ringsData={ringsData}
