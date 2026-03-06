@@ -25,6 +25,8 @@ export function useBrowserAgent(enabled: boolean = true, intervalMs: number = 50
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
+        let isCancelled = false;
+
         const startAgent = async () => {
             if (!enabled) {
                 if (intervalRef.current) {
@@ -57,6 +59,11 @@ export function useBrowserAgent(enabled: boolean = true, intervalMs: number = 50
                 }
             } else {
                 sourceRegionLocal = browserAgentState.sourceRegion || "Unknown";
+            }
+
+            // If the user toggled off or unmounted during the async fetch, abort!
+            if (isCancelled || !enabled) {
+                return;
             }
 
             setBrowserAgentState({ city, pinging: true, sourceRegion: sourceRegionLocal });
@@ -103,6 +110,9 @@ export function useBrowserAgent(enabled: boolean = true, intervalMs: number = 50
                     });
                 }
 
+                // Make sure we haven't been cancelled while probing
+                if (isCancelled) return;
+
                 try {
                     await fetch(`${backendUrl}/api/v1/measurements`, {
                         method: "POST",
@@ -130,8 +140,10 @@ export function useBrowserAgent(enabled: boolean = true, intervalMs: number = 50
         startAgent();
 
         return () => {
+            isCancelled = true;
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
+                intervalRef.current = null;
             }
         };
     }, [enabled, intervalMs, browserAgentState.city]);

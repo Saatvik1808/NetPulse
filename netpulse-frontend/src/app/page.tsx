@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useMeasurements } from "@/hooks/useMeasurements";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useBrowserAgent } from "@/hooks/useBrowserAgent";
-import { MeasurementData } from "@/lib/api";
+import { MeasurementData, COORDINATES, isRegionResolved } from "@/lib/api";
 import "./globals.css";
 
 // 3D Globe — client-side only
@@ -111,6 +111,41 @@ export default function Home() {
       fetchTargets();
     }
   }, [modalOpen, fetchTargets]);
+
+  // Lazy Geocoding for unknown regions
+  useEffect(() => {
+    const resolvePending = async () => {
+      const allRegions = new Set<string>();
+      existingTargets.forEach(t => { if (t.region) allRegions.add(t.region); });
+      measurements.forEach(m => {
+        if (m.sourceRegion) allRegions.add(m.sourceRegion);
+        if (m.targetRegion) allRegions.add(m.targetRegion);
+      });
+
+      for (const region of allRegions) {
+        if (!region || region === "unknown" || region === "global" || region === "local") continue;
+        if (!isRegionResolved(region)) {
+           try {
+              const city = region.split(",")[0].trim();
+              const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&format=json`);
+              if (res.ok) {
+                 const data = await res.json();
+                 if (data.results && data.results.length > 0) {
+                    COORDINATES[region] = [data.results[0].latitude, data.results[0].longitude];
+                    // Trigger a tiny state update to force re-render arcs with new real coordinates
+                    setMeasurements(prev => [...prev]); 
+                 } else {
+                    COORDINATES[region] = [0, 0]; // Mark as resolved (failed)
+                 }
+              }
+           } catch {
+              console.warn("Geocoding failed for", region);
+           }
+        }
+      }
+    };
+    resolvePending();
+  }, [existingTargets, measurements, setMeasurements]);
 
   // WebSocket live updates
   const handleNewMeasurement = useCallback(
@@ -222,8 +257,8 @@ export default function Home() {
           </div>
           <div className="tech-metric-row">
             <span className="tech-metric-key">BROWSER_AGENT:</span>
-            <span className="tech-metric-val" style={{ color: browserAgent.city ? "var(--accent-green)" : "var(--text-muted)" }}>
-              {browserAgent.city ? `ACTIVE (${browserAgent.city})` : "INITIATING..."}
+            <span className="tech-metric-val" style={{ color: (browserAgentEnabled && browserAgent.pinging && browserAgent.city) ? "var(--accent-green)" : "var(--text-muted)" }}>
+              {browserAgentEnabled && browserAgent.pinging ? `ACTIVE (${browserAgent.city})` : "INACTIVE"}
             </span>
           </div>
           <div className="tech-metric-row">

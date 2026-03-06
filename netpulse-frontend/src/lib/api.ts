@@ -81,6 +81,18 @@ const FALLBACK_CITIES: [number, number][] = [
   [37.5665, 126.9780],      // Seoul
 ];
 
+const HASH_CACHE: Record<string, [number, number]> = {};
+
+export function isRegionResolved(key: string): boolean {
+  if (!key || key === "unknown" || key === "global") return true;
+  if (COORDINATES[key]) return true;
+  const lowerKey = key.toLowerCase();
+  for (const known of Object.keys(COORDINATES)) {
+    if (lowerKey.includes(known)) return true;
+  }
+  return false;
+}
+
 export function getCoordinates(key: string): [number, number] {
   if (!key) return [0, 0];
   if (COORDINATES[key]) return COORDINATES[key];
@@ -93,6 +105,9 @@ export function getCoordinates(key: string): [number, number] {
     }
   }
 
+  // Use previously hashed fallback if available
+  if (HASH_CACHE[key]) return HASH_CACHE[key];
+
   // Generate deterministic pseudo-random coordinates for unknown regions
   let hash = 0;
   for (let i = 0; i < key.length; i++) {
@@ -102,6 +117,6 @@ export function getCoordinates(key: string): [number, number] {
   const index = Math.abs(hash) % FALLBACK_CITIES.length;
   const coords: [number, number] = FALLBACK_CITIES[index];
 
-  COORDINATES[key] = coords; // Cache it for consistency
+  HASH_CACHE[key] = coords; // Cache in FALLBACK cache, not COORDINATES
   return coords;
 }
