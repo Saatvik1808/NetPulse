@@ -327,6 +327,26 @@ export default function Home() {
                     onClick={async () => {
                       if (!newHost.trim()) return;
                       const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+                      
+                      let finalRegion = newRegion.trim();
+                      if (!finalRegion) {
+                        try {
+                          // Clean host for IP API (remove protocol/paths)
+                          let cleanHost = newHost.trim().replace(/^https?:\/\//, '').split('/')[0];
+                          const ipRes = await fetch(`https://ipapi.co/${cleanHost}/json/`);
+                          if (ipRes.ok) {
+                            const data = await ipRes.json();
+                            if (data.city && data.country_name) {
+                              finalRegion = `${data.city}, ${data.country_name}`;
+                            } else if (data.country_name) {
+                              finalRegion = data.country_name;
+                            }
+                          }
+                        } catch (e) {
+                          console.warn("Could not auto-resolve region", e);
+                        }
+                      }
+                      
                       try {
                         const response = await fetch(`${backendUrl}/api/v1/targets`, {
                           method: "POST",
@@ -334,7 +354,7 @@ export default function Home() {
                           body: JSON.stringify({
                             host: newHost.trim(),
                             url: newHost.startsWith("http") ? newHost.trim() : `https://${newHost.trim()}`,
-                            region: newRegion.trim() || "unknown"
+                            region: finalRegion || "global"
                           })
                         });
                         if (response.ok) {
