@@ -331,7 +331,7 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
           // Add clouds layer directly to THIS globe's scene
           const globe = globeRef.current;
           if (globe) {
-            const CLOUDS_IMG_URL = '//unpkg.com/three-globe/example/img/earth-clouds.png';
+            const CLOUDS_IMG_URL = '/img/8k_earth_clouds.jpg';
             const CLOUDS_ALT = 0.004;
             const CLOUDS_ROTATION_SPEED = -0.006; // deg/frame
 
@@ -380,7 +380,7 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
         }}
         
         // ── HD Realistic Textures ──
-        globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
+        globeImageUrl="/img/8k_earth_daymap.jpg"
         bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
         backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
         atmosphereColor="#3a60df"
@@ -389,10 +389,10 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
         // ── Neon Arcs ──
         arcsData={allArcs}
         arcColor={(d: any) => [(d as any).startColor, (d as any).endColor]} 
-        arcDashLength={(d: any) => (d as any).isTraceroute ? 0.15 : 0.3}
-        arcDashGap={(d: any) => (d as any).isTraceroute ? 0.5 : 2}
+        arcDashLength={(d: any) => (d as any).isTraceroute ? 0.3 : 0.6}
+        arcDashGap={(d: any) => (d as any).isTraceroute ? 0.8 : 1.2}
         arcDashInitialGap={() => Math.random() * 2}
-        arcDashAnimateTime={(d: any) => (d as any).isTraceroute ? 800 : 1500}
+        arcDashAnimateTime={(d: any) => (d as any).isTraceroute ? 1200 : 2000}
         arcStroke={(d: any) => (d as any).strokeWidth} 
         arcLabel="label"
         arcAltitudeAutoScale={(d: any) => (d as any).isTraceroute ? 0.2 : 0.5}
