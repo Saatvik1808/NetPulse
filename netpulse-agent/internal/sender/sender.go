@@ -115,3 +115,41 @@ func (s *Sender) Send(results []prober.Result) error {
 	fmt.Printf("  → Sent %d measurements (202 Accepted)\n", len(measurements))
 	return nil
 }
+
+// SendTraceroute pushes traceroute hop data to the backend
+func (s *Sender) SendTraceroute(targetHost string, hops []prober.Hop) error {
+	type traceroutePayload struct {
+		AgentID      string       `json:"agentId"`
+		SourceRegion string       `json:"sourceRegion"`
+		TargetHost   string       `json:"targetHost"`
+		Hops         []prober.Hop `json:"hops"`
+		TracedAt     string       `json:"tracedAt"`
+	}
+
+	body := traceroutePayload{
+		AgentID:      s.agentID,
+		SourceRegion: s.region,
+		TargetHost:   targetHost,
+		Hops:         hops,
+		TracedAt:     time.Now().UTC().Format(time.RFC3339),
+	}
+
+	jsonBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshal traceroute error: %w", err)
+	}
+
+	url := s.serverURL + "/api/v1/traceroutes"
+	resp, err := s.client.Post(url, "application/json", bytes.NewReader(jsonBytes))
+	if err != nil {
+		return fmt.Errorf("send traceroute error: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected traceroute status: %d", resp.StatusCode)
+	}
+
+	fmt.Printf("  → Sent traceroute for %s (%d hops)\n", targetHost, len(hops))
+	return nil
+}

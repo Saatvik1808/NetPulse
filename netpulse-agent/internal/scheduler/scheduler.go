@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/netpulse/netpulse-agent/internal/config"
@@ -53,5 +54,15 @@ func runProbes(cfg *config.Config, s *sender.Sender) {
 	if err := s.Send(results); err != nil {
 		fmt.Printf("  ✗ Failed to send: %v\n", err)
 	}
+
+	// Run traceroute on one random target per cycle
+	randomTarget := targets[rand.Intn(len(targets))]
+	hops := prober.Traceroute(randomTarget.Host, 15)
+	if len(hops) > 0 {
+		if err := s.SendTraceroute(randomTarget.Host, hops); err != nil {
+			fmt.Printf("  ✗ Failed to send traceroute: %v\n", err)
+		}
+	}
+
 	fmt.Println("---")
 }

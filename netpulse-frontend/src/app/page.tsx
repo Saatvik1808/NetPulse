@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useMeasurements } from "@/hooks/useMeasurements";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useBrowserAgent } from "@/hooks/useBrowserAgent";
-import { MeasurementData, COORDINATES, isRegionResolved } from "@/lib/api";
+import { MeasurementData, TracerouteHop, COORDINATES, isRegionResolved, fetchTraceroute } from "@/lib/api";
 import "./globals.css";
 
 // 3D Globe — client-side only
@@ -89,6 +89,8 @@ export default function Home() {
   
   // Terminal tracking
   const [totalPackets, setTotalPackets] = useState(0);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [tracerouteData, setTracerouteData] = useState<TracerouteHop[]>([]);
 
   // Fetch targets globally to keep 'ACTIVE TARGETS' count accurate
   const fetchTargets = useCallback(() => {
@@ -157,6 +159,15 @@ export default function Home() {
   );
   const { connected } = useWebSocket(handleNewMeasurement);
 
+  // Fetch traceroute when a target is selected
+  useEffect(() => {
+    if (selectedTarget) {
+      fetchTraceroute(selectedTarget).then(setTracerouteData);
+    } else {
+      setTracerouteData([]);
+    }
+  }, [selectedTarget]);
+
   if (loading) {
     return (
       <div className="loading">
@@ -184,6 +195,8 @@ export default function Home() {
           measurements={measurements} 
           selectedTarget={selectedTarget} 
           onSelectNode={setSelectedTarget}
+          showHeatmap={showHeatmap}
+          tracerouteHops={tracerouteData}
         />
       </div>
 
@@ -206,6 +219,12 @@ export default function Home() {
           </div>
           <button className="btn btn--primary" onClick={() => setModalOpen(true)}>
             + Add Target
+          </button>
+          <button 
+            className={`btn ${showHeatmap ? 'btn--heatmap-active' : ''}`} 
+            onClick={() => setShowHeatmap(!showHeatmap)}
+          >
+            🔥 Heatmap
           </button>
           <button className="btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
             {sidebarOpen ? "✕ Close" : "☰ Dashboard"}

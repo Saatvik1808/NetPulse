@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { MeasurementData, COORDINATES, getCoordinates } from "@/lib/api";
+import { MeasurementData, TracerouteHop, COORDINATES, getCoordinates } from "@/lib/api";
 
 import * as THREE from 'three';
 
@@ -12,6 +12,8 @@ interface GlobeMapProps {
   measurements: MeasurementData[];
   selectedTarget: string | null;
   onSelectNode?: (target: string | null) => void;
+  showHeatmap?: boolean;
+  tracerouteHops?: TracerouteHop[];
 }
 
 // Neon color palette — vivid, saturated, glowing
@@ -34,10 +36,11 @@ function latencySingleColor(ms: number): string {
   return "#ff1744";
 }
 
-export default function GlobeMap({ measurements, selectedTarget, onSelectNode }: GlobeMapProps) {
+export default function GlobeMap({ measurements, selectedTarget, onSelectNode, showHeatmap = false, tracerouteHops = [] }: GlobeMapProps) {
   const globeRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [globeReady, setGlobeReady] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [hopCoords, setHopCoords] = useState<Record<string, [number, number]>>({});
 
   // Initial camera position (run once)
   useEffect(() => {
@@ -227,6 +230,98 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode }:
     [pointsData]
   );
 
+  // Build heatmap data from measurements
+  const heatmapData = useMemo(() => {
+    if (!showHeatmap) return [];
+    
+    const heatPoints: { lat: number; lng: number; weight: number }[] = [];
+    measurements.forEach((m) => {
+      const tgtKey = m.targetRegion || m.targetHost;
+      const coords = getCoordinates(tgtKey);
+      if (coords && (coords[0] !== 0 || coords[1] !== 0)) {
+        // Weight: higher latency = higher weight (hotter color)
+        const weight = Math.min(m.latencyMs / 500, 1); // normalize to [0, 1] with 500ms as max
+        heatPoints.push({ lat: coords[0], lng: coords[1], weight: Math.max(weight, 0.05) });
+      }
+      // Also add source regions with a small base weight
+      const srcCoords = getCoordinates(m.sourceRegion);
+      if (srcCoords && (srcCoords[0] !== 0 || srcCoords[1] !== 0)) {
+        heatPoints.push({ lat: srcCoords[0], lng: srcCoords[1], weight: 0.1 });
+      }
+    });
+    return [{ points: heatPoints }];
+  }, [measurements, showHeatmap]);
+
+  // Geocode traceroute hop IPs
+  useEffect(() => {
+    if (tracerouteHops.length === 0) { setHopCoords({}); return; }
+    const unknownIps = tracerouteHops
+      .filter(h => !h.timedOut && h.hopIp !== '*' && !hopCoords[h.hopIp])
+      .map(h => h.hopIp);
+    if (unknownIps.length === 0) return;
+
+    // Batch geocode via ip-api.com (free, up to 15 per minute)
+    const unique = [...new Set(unknownIps)].slice(0, 10);
+    Promise.all(unique.map(ip =>
+      fetch(`http://ip-api.com/json/${ip}?fields=lat,lon,status`)
+        .then(r => r.json())
+        .catch(() => null)
+    )).then(results => {
+      const newCoords: Record<string, [number, number]> = { ...hopCoords };
+      results.forEach((r, i) => {
+        if (r && r.status === 'success') {
+          newCoords[unique[i]] = [r.lat, r.lon];
+        }
+      });
+      setHopCoords(newCoords);
+    });
+  }, [tracerouteHops]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Build traceroute arcs and points
+  const tracerouteArcs = useMemo(() => {
+    if (tracerouteHops.length === 0) return [];
+    const arcs: any[] = [];
+    const hopsWithCoords = tracerouteHops
+      .filter(h => !h.timedOut && hopCoords[h.hopIp])
+      .sort((a, b) => a.hopNumber - b.hopNumber);
+
+    for (let i = 0; i < hopsWithCoords.length - 1; i++) {
+      const from = hopCoords[hopsWithCoords[i].hopIp];
+      const to = hopCoords[hopsWithCoords[i + 1].hopIp];
+      if (from && to) {
+        arcs.push({
+          startLat: from[0], startLng: from[1],
+          endLat: to[0], endLng: to[1],
+          startColor: '#00e5ff', endColor: '#00b8d4',
+          strokeWidth: 0.6,
+          label: `<div style="font-family:'JetBrains Mono',monospace;background:rgba(0,229,255,0.15);border:1px solid #00e5ff40;border-radius:6px;padding:8px 12px;color:#e0f7fa;font-size:11px;">Hop ${hopsWithCoords[i].hopNumber} → ${hopsWithCoords[i + 1].hopNumber}<br/>${hopsWithCoords[i].hopIp} → ${hopsWithCoords[i + 1].hopIp}<br/>RTT: ${hopsWithCoords[i + 1].hopRttMs.toFixed(1)} ms</div>`,
+          isTraceroute: true,
+        });
+      }
+    }
+    return arcs;
+  }, [tracerouteHops, hopCoords]);
+
+  const traceroutePoints = useMemo(() => {
+    if (tracerouteHops.length === 0) return [];
+    return tracerouteHops
+      .filter(h => !h.timedOut && hopCoords[h.hopIp])
+      .map(h => ({
+        lat: hopCoords[h.hopIp][0],
+        lng: hopCoords[h.hopIp][1],
+        isSource: false,
+        isPointSelected: true,
+        isTracerouteHop: true,
+        targetKey: h.hopIp,
+        label: `<div style="font-family:'JetBrains Mono',monospace;background:rgba(0,229,255,0.12);border:1px solid #00e5ff50;border-radius:6px;padding:8px 12px;color:#e0f7fa;font-size:11px;">Hop #${h.hopNumber}<br/>IP: ${h.hopIp}<br/>RTT: ${h.hopRttMs.toFixed(1)} ms</div>`,
+        latencyMs: h.hopRttMs,
+      }));
+  }, [tracerouteHops, hopCoords]);
+
+  // Merge all arcs and points
+  const allArcs = useMemo(() => [...arcsData, ...tracerouteArcs], [arcsData, tracerouteArcs]);
+  const allPoints = useMemo(() => [...pointsData, ...traceroutePoints], [pointsData, traceroutePoints]);
+
   return (
     <div style={{ width: "100%", height: "100%", background: "#050816" }}>
       <Globe
@@ -292,25 +387,30 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode }:
         atmosphereAltitude={0.15}
 
         // ── Neon Arcs ──
-        arcsData={arcsData}
+        arcsData={allArcs}
         arcColor={(d: any) => [(d as any).startColor, (d as any).endColor]} 
-        arcDashLength={0.3}
-        arcDashGap={2}
+        arcDashLength={(d: any) => (d as any).isTraceroute ? 0.15 : 0.3}
+        arcDashGap={(d: any) => (d as any).isTraceroute ? 0.5 : 2}
         arcDashInitialGap={() => Math.random() * 2}
-        arcDashAnimateTime={() => 1500}
+        arcDashAnimateTime={(d: any) => (d as any).isTraceroute ? 800 : 1500}
         arcStroke={(d: any) => (d as any).strokeWidth} 
         arcLabel="label"
-        arcAltitudeAutoScale={0.5} // Slightly flatter arcs
+        arcAltitudeAutoScale={(d: any) => (d as any).isTraceroute ? 0.2 : 0.5}
 
         // ── Glowing Points ──
-        pointsData={pointsData}
+        pointsData={allPoints}
         pointColor={(d: any) => { 
           const p = d as any; 
+          if (p.isTracerouteHop) return "#00e5ff";
           if (!p.isPointSelected) return "#ffffff10";
           return p.isSource ? "#00b0ff" : "#f43f5e";
         }}
-        pointAltitude={0.015} // Above clouds
-        pointRadius={(d: any) => (d as any).isPointSelected ? 0.6 : 0.3} 
+        pointAltitude={(d: any) => (d as any).isTracerouteHop ? 0.025 : 0.015}
+        pointRadius={(d: any) => {
+          const p = d as any;
+          if (p.isTracerouteHop) return 0.4;
+          return p.isPointSelected ? 0.6 : 0.3;
+        }} 
         pointLabel="label"
         pointsMerge={false}
         onPointHover={(point: any) => setIsHovered(!!point)}
@@ -353,6 +453,14 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode }:
           el.style.cssText = "pointer-events: none;";
           return el;
         }}
+        // ── Live Latency Heatmap ──
+        heatmapsData={heatmapData}
+        heatmapPointLat="lat"
+        heatmapPointLng="lng"
+        heatmapPointWeight="weight"
+        heatmapTopAltitude={0.01}
+        heatmapBandwidth={3.5}
+        heatmapColorSaturation={2.8}
       />
 
       <style jsx global>{`

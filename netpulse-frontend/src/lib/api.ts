@@ -33,6 +33,30 @@ export async function fetchLatestMeasurements(): Promise<MeasurementData[]> {
   return res.json();
 }
 
+export interface TracerouteHop {
+  id: number;
+  agentId: string;
+  sourceRegion: string;
+  targetHost: string;
+  hopNumber: number;
+  hopIp: string;
+  hopRttMs: number;
+  timedOut: boolean;
+  tracedAt: string;
+}
+
+export async function fetchTraceroute(target: string): Promise<TracerouteHop[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/traceroutes/latest?target=${encodeURIComponent(target)}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
 // Map known regions/hosts to lat/lng for map plotting
 // In production, this would come from the agents table
 // Map known regions/hosts to lat/lng for map plotting
