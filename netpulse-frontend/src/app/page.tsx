@@ -90,16 +90,27 @@ export default function Home() {
   // Terminal tracking
   const [totalPackets, setTotalPackets] = useState(0);
 
-  // Fetch targets when modal opens
+  // Fetch targets globally to keep 'ACTIVE TARGETS' count accurate
+  const fetchTargets = useCallback(() => {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+    fetch(`${backendUrl}/api/v1/targets`)
+      .then(res => res.json())
+      .then(data => setExistingTargets(data))
+      .catch(err => console.error("Fetch targets error:", err));
+  }, []);
+
+  useEffect(() => {
+    fetchTargets(); // Initial fetch
+    const targetsInterval = setInterval(fetchTargets, 15000); // Sync every 15s
+    return () => clearInterval(targetsInterval);
+  }, [fetchTargets]);
+
+  // Re-fetch immediately when modal opens to ensure fresh data
   useEffect(() => {
     if (modalOpen) {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      fetch(`${backendUrl}/api/v1/targets`)
-        .then(res => res.json())
-        .then(data => setExistingTargets(data))
-        .catch(err => console.error("Fetch targets error:", err));
+      fetchTargets();
     }
-  }, [modalOpen]);
+  }, [modalOpen, fetchTargets]);
 
   // WebSocket live updates
   const handleNewMeasurement = useCallback(
@@ -128,7 +139,7 @@ export default function Home() {
     ? Math.min(...success.map((m) => m.latencyMs)) : 0;
   const max = success.length > 0
     ? Math.max(...success.map((m) => m.latencyMs)) : 0;
-  const uniqueTargets = new Set(measurements.map((m) => m.targetHost)).size;
+  const uniqueTargets = existingTargets.filter((t) => t.active !== false).length;
 
   return (
     <div className="app">
