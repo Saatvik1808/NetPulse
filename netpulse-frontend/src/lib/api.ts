@@ -62,6 +62,25 @@ export const COORDINATES: Record<string, [number, number]> = {
   "aws.amazon": [47.6062, -122.3321],      // Seattle
 };
 
+// Fixed list of fallback global tech hubs so unknown targets don't land in the ocean
+const FALLBACK_CITIES: [number, number][] = [
+  [51.5072, -0.1276],       // London
+  [48.8566, 2.3522],        // Paris
+  [52.5200, 13.4050],       // Berlin
+  [1.3521, 103.8198],       // Singapore
+  [35.6762, 139.6503],      // Tokyo
+  [-33.8688, 151.2093],     // Sydney
+  [40.7128, -74.0060],      // New York
+  [34.0522, -118.2437],     // Los Angeles
+  [41.8781, -87.6298],      // Chicago
+  [43.6532, -79.3832],      // Toronto
+  [-23.5505, -46.6333],     // São Paulo
+  [28.6139, 77.2090],       // New Delhi
+  [31.2304, 121.4737],      // Shanghai
+  [19.0760, 72.8777],       // Mumbai
+  [37.5665, 126.9780],      // Seoul
+];
+
 export function getCoordinates(key: string): [number, number] {
   if (!key) return [0, 0];
   if (COORDINATES[key]) return COORDINATES[key];
@@ -79,10 +98,10 @@ export function getCoordinates(key: string): [number, number] {
   for (let i = 0; i < key.length; i++) {
     hash = key.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const lat = -50 + Math.abs(hash % 100); // -50 to +50 to avoid extreme poles
-  const lng = -160 + Math.abs((hash >> 8) % 320); // spread across longitudes
 
-  const coords: [number, number] = [lat, lng];
+  const index = Math.abs(hash) % FALLBACK_CITIES.length;
+  const coords: [number, number] = FALLBACK_CITIES[index];
+
   COORDINATES[key] = coords; // Cache it for consistency
   return coords;
 }
