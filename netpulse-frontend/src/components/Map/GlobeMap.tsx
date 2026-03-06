@@ -39,20 +39,27 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode }:
   const [globeReady, setGlobeReady] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  // Auto-rotate & initial position
+  // Initial camera position (run once)
   useEffect(() => {
     if (globeRef.current && globeReady) {
       const controls = globeRef.current.controls();
-      controls.autoRotate = !isHovered; // Pause when interacting
-      controls.autoRotateSpeed = 0.3;
       controls.enableZoom = true;
       controls.minDistance = 150;
       controls.maxDistance = 500;
+      controls.autoRotateSpeed = 0.3;
 
-      // Point camera at India
+      // Point camera at India only on initial load
       globeRef.current.pointOfView({ lat: 20, lng: 78, altitude: 2.2 }, 1500);
     }
-  }, [globeReady, isHovered]);
+  }, [globeReady]);
+
+  // Handle pause/play rotation independently based on hover state
+  useEffect(() => {
+    if (globeRef.current && globeReady) {
+       const controls = globeRef.current.controls();
+       controls.autoRotate = !isHovered;
+    }
+  }, [isHovered, globeReady]);
 
   // Build arcs from measurements
   const arcsData = useMemo(() => {
@@ -90,7 +97,7 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode }:
           targetKey,
           targetHost: m.targetHost,
           latencyMs: m.latencyMs,
-          strokeWidth: isSelected ? (selectedTarget ? 1.4 : 0.8) : 0.3,
+          strokeWidth: isSelected ? (selectedTarget ? 0.8 : 0.3) : 0.1,
           label: `<div style="
             font-family: 'JetBrains Mono', monospace;
             background: rgba(5, 8, 22, 0.9);
@@ -287,12 +294,13 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode }:
         // ── Neon Arcs ──
         arcsData={arcsData}
         arcColor={(d: any) => [(d as any).startColor, (d as any).endColor]} 
-        arcDashLength={0.6}
-        arcDashGap={0.15}
-        arcDashAnimateTime={() => 800 + Math.random() * 700}
+        arcDashLength={0.3}
+        arcDashGap={2}
+        arcDashInitialGap={() => Math.random() * 2}
+        arcDashAnimateTime={() => 1500}
         arcStroke={(d: any) => (d as any).strokeWidth} 
         arcLabel="label"
-        arcAltitudeAutoScale={0.6} // Increased to ensure it pops above clouds
+        arcAltitudeAutoScale={0.5} // Slightly flatter arcs
 
         // ── Glowing Points ──
         pointsData={pointsData}
