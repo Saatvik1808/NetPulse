@@ -249,7 +249,7 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
         heatPoints.push({ lat: srcCoords[0], lng: srcCoords[1], weight: 0.1 });
       }
     });
-    return [{ points: heatPoints }];
+    return [heatPoints];
   }, [measurements, showHeatmap]);
 
   // Geocode traceroute hop IPs
