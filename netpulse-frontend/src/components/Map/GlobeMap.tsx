@@ -338,7 +338,12 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
             new THREE.TextureLoader().load(CLOUDS_IMG_URL, (cloudsTexture: any) => {
               const clouds = new THREE.Mesh(
                 new THREE.SphereGeometry(globe.getGlobeRadius() * (1 + CLOUDS_ALT), 75, 75),
-                new THREE.MeshPhongMaterial({ map: cloudsTexture, transparent: true, opacity: 0.8 })
+                new THREE.MeshPhongMaterial({ 
+                  map: cloudsTexture, 
+                  transparent: true, 
+                  opacity: 0.4,
+                  blending: THREE.AdditiveBlending
+                })
               );
               globe.scene().add(clouds);
 
@@ -383,7 +388,7 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
         globeImageUrl="/img/8k_earth_daymap.jpg"
         bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
         backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-        atmosphereColor="#3a60df"
+        atmosphereColor="lightskyblue"
         atmosphereAltitude={0.15}
 
         // ── Neon Arcs ──
