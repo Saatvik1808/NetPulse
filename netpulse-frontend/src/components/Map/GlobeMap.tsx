@@ -331,7 +331,7 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
           // Add clouds layer directly to THIS globe's scene
           const globe = globeRef.current;
           if (globe) {
-            const CLOUDS_IMG_URL = '//upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Solarsystemscope_texture_8k_earth_clouds.jpg/8192px-Solarsystemscope_texture_8k_earth_clouds.jpg';
+            const CLOUDS_IMG_URL = '//unpkg.com/three-globe/example/img/earth-clouds.png';
             const CLOUDS_ALT = 0.004;
             const CLOUDS_ROTATION_SPEED = -0.006; // deg/frame
 
@@ -380,7 +380,7 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode, s
         }}
         
         // ── HD Realistic Textures ──
-        globeImageUrl="//upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Solarsystemscope_texture_8k_earth_daymap.jpg/8192px-Solarsystemscope_texture_8k_earth_daymap.jpg"
+        globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
         bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
         backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
         atmosphereColor="#3a60df"
