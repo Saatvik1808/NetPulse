@@ -245,7 +245,36 @@ export default function GlobeMap({ measurements, selectedTarget, onSelectNode }:
                 requestAnimationFrame(rotateClouds);
               })();
             });
+
+            // ── Dynamic 3D Starfield ──
+            const starGeometry = new THREE.BufferGeometry();
+            const starMaterial = new THREE.PointsMaterial({
+              color: 0xffffff,
+              size: 2.0,
+              transparent: true,
+              opacity: 0.9,
+              sizeAttenuation: true
+            });
+            const starVertices = [];
+            for (let i = 0; i < 6000; i++) {
+              const x = (Math.random() - 0.5) * 3000;
+              const y = (Math.random() - 0.5) * 3000;
+              const z = (Math.random() - 0.5) * 3000;
+              // Keep stars outside the immediate globe vicinity
+              if (Math.abs(x) < 300 && Math.abs(y) < 300 && Math.abs(z) < 300) continue;
+              starVertices.push(x, y, z);
+            }
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            globe.scene().add(stars);
+
+            (function animateStars() {
+              stars.rotation.y += 0.0003;
+              stars.rotation.z += 0.0001;
+              requestAnimationFrame(animateStars);
+            })();
           }
+
         }}
         
         // ── HD Realistic Textures ──

@@ -88,6 +88,8 @@ export function useBrowserAgent(enabled: boolean = true, intervalMs: number = 50
 
                 const measurements = [];
                 for (const target of currentTargets) {
+                    if (isCancelled) break; // <--- Escape immediately!
+
                     const start = performance.now();
                     let status = "ERROR";
                     let latencyMs = 0;
